@@ -1,0 +1,28 @@
+{
+  "name": "lul-snapper",
+  "version": "0.0.1",
+  "description": "app that detects special moments of twitch streams based on chat interaction",
+  "main": "app.js",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^15.0.0",
+    "tmi.js": "^1.8.5"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com:kono94/twitch-snapper.git"
+  },
+  "keywords": [
+    "twitch",
+    "snapper",
+    "chat",
+    "emotes",
+    "irc"
+  ],
+  "author": "Jan Löwenstrom",
+  "license": "Apache-2.0"
+}
