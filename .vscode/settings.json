@@ -1,0 +1,14 @@
+{
+ // --snip--
+ "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+   // --snip--
+  // enable prettier as default formatter for all supported filetypes
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // JavaScript specific settings:
+  "[javascript]": {
+    // disable prettier
+    "editor.defaultFormatter": null
+  }
+}

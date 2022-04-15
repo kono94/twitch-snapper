@@ -2,3 +2,5 @@ secrets
 .DS_STORE
 node_modules/
 .env
+logs/*
+!.gitkeep
