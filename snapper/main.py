@@ -18,7 +18,7 @@ def main() -> None:
     logger.debug("This is main!")
     envs = get_envs()
     logger.debug(f'IRC OAUTH: {envs["IRC_OAUTH"]}')
-    irc = IRC(nickname=envs["IRC_NICKNAME"], password=envs["IRC_OAUTH"], channel="lirik")
+    irc = IRC(nickname=envs["IRC_NICKNAME"], password=envs["IRC_OAUTH"], channel=envs["IRC_CHANNEL"])
     irc.start()
 
 

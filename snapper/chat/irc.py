@@ -29,7 +29,7 @@ class IRC(threading.Thread):
     def run(self):
         self.connect()
         self.authenticate()
-        self.join_channel("lirik")
+        self.join_channel(self.channel)
         
         while self.active:
             try:
