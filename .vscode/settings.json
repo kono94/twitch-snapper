@@ -1,14 +1,15 @@
 {
- // --snip--
- "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
-  },
-   // --snip--
-  // enable prettier as default formatter for all supported filetypes
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  // JavaScript specific settings:
-  "[javascript]": {
-    // disable prettier
-    "editor.defaultFormatter": null
-  }
+    "python.analysis.typeCheckingMode": "basic",
+    "[python]": {
+        "editor.tabSize": 4
+    },
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "python.linting.lintOnSave": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.pipenvPath":"~/.local/share/virtualenvs/twitch-snapper-f48Jl0GQ/bin//python"   
 }
