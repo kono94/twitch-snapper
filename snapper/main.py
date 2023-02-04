@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from snapper.chat.irc import IRC
-from util import get_envs
+from snapper.util import get_envs
 
 
 def main() -> None:
@@ -15,10 +15,15 @@ def main() -> None:
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
     logger.debug("This is main!")
     envs = get_envs()
     logger.debug(f'IRC OAUTH: {envs["IRC_OAUTH"]}')
-    irc = IRC(nickname=envs["IRC_NICKNAME"], password=envs["IRC_OAUTH"], channel=envs["IRC_CHANNEL"])
+    irc = IRC(
+        nickname=envs["IRC_NICKNAME"],
+        password=envs["IRC_OAUTH"],
+        channel=envs["IRC_CHANNEL"],
+    )
     irc.start()
 
 

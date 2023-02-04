@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 numpy = "==1.24.1"
 python-dotenv = "*"
+pre-commit = "*"
 
 [dev-packages]
 

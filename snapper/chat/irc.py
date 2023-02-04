@@ -30,7 +30,7 @@ class IRC(threading.Thread):
         self.connect()
         self.authenticate()
         self.join_channel(self.channel)
-        
+
         while self.active:
             try:
                 data = self._read_line()
@@ -74,7 +74,8 @@ class IRC(threading.Thread):
 
     def leave_channels(self, channels: List[str]) -> None:
         channels = [channel.lstrip("#") for channel in channels]
-        [self.channels.remove(channel) for channel in channels]
+        for channel in channels:
+            self.channels.remove(channel)
         self.send_raw("PART #" + "#".join(channels))
 
     def _read_line(self) -> bytes:
