@@ -9,6 +9,8 @@ python-dotenv = "*"
 pre-commit = "*"
 
 [dev-packages]
+pylint = "*"
+black = "*"
 
 [requires]
 python_version = "3.11"

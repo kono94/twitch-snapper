@@ -1,89 +1,76 @@
+import datetime
 import logging
 import socket
 import threading
-from typing import List
+from dataclasses import dataclass
+from enum import Enum
 
-log = logging.getLogger(__name__)
+Log = logging.getLogger(__name__)
 
 
-class IRC(threading.Thread):
-    def __init__(
-        self,
-        nickname: str,
-        password: str,
-        channel: str,
-        address: str = "irc.chat.twitch.tv",
-        port: int = 6667,
-    ):
+class IRCCommand(Enum):
+    JOIN = "JOIN"
+    MESSAGE = "PRIVMSG"
+
+
+@dataclass
+class IRCMessage:
+    timestamp: str
+    username: str
+    message: str
+
+    def __str__(self) -> str:
+        return f"Username: {self.username} \t Message: {self.message}"
+
+
+class IRCClient(threading.Thread):
+    def __init__(self, host, port, nick, oauth, channel, callback=None):
         super().__init__()
+        self.host = host
+        self.port = port
+        self.nick = nick
+        self.password = oauth
+        self.channel = channel
+        self.callback = callback
+        self.sock = socket.socket()
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.address: str = address
-        self.port: int = port
-        self.channels: List[str] = []
-        self.nickname: str = nickname
-        self.password: str = "oauth:" + password.lstrip("oauth:")
-        self.channel: str = channel
-        self.active: bool = True
+    def send_message(self, message):
+        self.sock.send((message + "\r\n").encode())
+
+    def join_channel(self, channel):
+        Log.debug(f"Joining channel {channel}...")
+        self.send_message("JOIN #" + channel)
+
+    def process_line(self, line):
+        command = line.split(" ")[1]
+        if command == IRCCommand.MESSAGE.value:
+            username_start = line.index("!") + 1
+            username_end = line.index("@")
+            username = line[username_start:username_end]
+            message_start = line.index(f"PRIVMSG #{self.channel} :") + len(
+                f"PRIVMSG #{self.channel} :"
+            )
+            message = line[message_start:]
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return IRCMessage(timestamp=now, username=username, message=message)
+        elif line.startswith("PING"):
+            self.send_message(line.replace("PING", "PONG"))
 
     def run(self):
-        self.connect()
-        self.authenticate()
+        self.sock.connect((self.host, self.port))
+        self.send_message("PASS " + self.password)
+        self.send_message("NICK " + self.nick)
+        self.send_message("USER " + self.nick + " 8 * :" + self.nick)
         self.join_channel(self.channel)
 
-        while self.active:
-            try:
-                data = self._read_line()
-                log.debug(data)
-                text = data.decode("UTF-8").strip("\n\r")
-
-                if text.find("PING") >= 0:
-                    self.send_raw("PONG " + text.split()[1])
-
-                if text.find("Login authentication failed") > 0:
-                    logging.fatal("IRC authentication error: " + text or "")
-                    return
-
-            except IOError:
-                break
-
-    def send_raw(self, message: str) -> None:
-        data = (message.lstrip("\n") + "\n").encode("utf-8")
-        self.socket.send(data)
-
-    def send_message(self, message: str, channel: str) -> None:
-        channel = channel.lstrip("#")
-        self.send_raw(f"PRIVMSG #{channel} :{message}")
-
-    def connect(self) -> None:
-        self.socket.connect((self.address, self.port))
-
-    def authenticate(self) -> None:
-        self.send_raw(f"PASS {self.password}")
-        self.send_raw(f"NICK {self.nickname}")
-
-    def join_channel(self, channel: str) -> None:
-        channel = channel.lstrip("#")
-        self.channels.append(channel)
-        self.send_raw(f"JOIN #{channel}")
-
-    def leave_channel(self, channel: str) -> None:
-        channel = channel.lstrip("#")
-        self.channels.remove(channel)
-        self.send_raw(f"PART #{channel}")
-
-    def leave_channels(self, channels: List[str]) -> None:
-        channels = [channel.lstrip("#") for channel in channels]
-        for channel in channels:
-            self.channels.remove(channel)
-        self.send_raw("PART #" + "#".join(channels))
-
-    def _read_line(self) -> bytes:
-        data: bytes = b""
         while True:
-            next_byte: bytes = self.socket.recv(1)
-            if next_byte == b"\n":
-                break
-            data += next_byte
-
-        return data
+            data = b""
+            while not data.endswith(b"\r\n"):
+                new_data = self.sock.recv(124)
+                if not new_data:
+                    break
+                data += new_data
+            lines = data.decode().strip().split("\r\n")
+            for line in lines:
+                if self.callback is not None:
+                    self.callback(self.process_line(line))
