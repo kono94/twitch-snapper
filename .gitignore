@@ -3,6 +3,7 @@
 .env.secret
 trash/
 secrets
+docker.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
