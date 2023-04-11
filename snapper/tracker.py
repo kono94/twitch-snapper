@@ -1,16 +1,15 @@
 import datetime
 import logging
-import sys
 import threading
 import time
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
 from dataclasses import dataclass
+
+from twitchAPI.twitch import Twitch
 
 from snapper.chat.irc import IRCClient, IRCMessage
 from snapper.util import get_envs
+
+Log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -35,14 +34,12 @@ class KeywordData:
         return f"count: {self.count} \t isActive: {self.is_active} \t active_circles: {self.active_circles} \t timestamp_activated: {self.timestamp_activated}"
 
 
-def main() -> None:
-    Log = logging.getLogger(__name__)
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+async def triggered(twitch: Twitch):
+    clip = await twitch.create_clip("lirik")
 
+
+async def track() -> None:
+    twitch = await Twitch("my_app_id", "my_app_secret")
     Log.debug("This is main!")
     envs = get_envs()
     Log.debug("IRC OAUTH: %s", {envs["IRC_OAUTH"]})
@@ -55,12 +52,12 @@ def main() -> None:
 
     lock = threading.Lock()
 
-    def analyse_keyword_count():
+    async def analyse_keyword_count():
         pause = 3
         while True:
             with lock:
                 for keyword, keyword_data in keyword_count.items():
-                    print(f"{keyword_data.count}x{keyword} per {pause} seconds")
+                    Log.debug(f"{keyword_data.count}x{keyword} per {pause} seconds")
                     if not keyword_data.is_active and keyword_data.count >= 3:
                         Log.info(f"Activated {keyword}!")
                         keyword_data.activate()
@@ -75,6 +72,7 @@ def main() -> None:
                             )
                             if keyword_data.count >= TRIGGER_THRESHOLD:
                                 Log.info("Do something, e.g. create clip")
+                                await triggered(twitch)
                             keyword_data.deactivate()
             time.sleep(pause)
 
@@ -101,7 +99,3 @@ def main() -> None:
     )
 
     irc_client.start()
-
-
-if __name__ == "__main__":
-    main()

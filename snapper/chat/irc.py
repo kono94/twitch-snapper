@@ -61,7 +61,6 @@ class IRCClient(threading.Thread):
         self.send_message("PASS " + self.password)
         self.send_message("NICK " + self.nick)
         self.send_message("USER " + self.nick + " 8 * :" + self.nick)
-        self.join_channel(self.channel)
 
         while True:
             data = b""
