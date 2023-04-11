@@ -11,6 +11,5 @@
   "python.linting.lintOnSave": true,
   "python.linting.enabled": true,
   "python.linting.pylintEnabled": true,
-  "python.linting.pylintArgs": ["--logging-format-style=fstr"],
-  "python.pipenvPath": "~/.local/share/virtualenvs/twitch-snapper-f48Jl0GQ/bin//python"
+  "python.linting.pylintArgs": ["--logging-format-style=fstr"]
 }
