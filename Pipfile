@@ -8,9 +8,10 @@ numpy = "==1.24.1"
 python-dotenv = "*"
 pre-commit = "*"
 flask = "*"
+twitchapi = "*"
+pylint = "*"
 
 [dev-packages]
-pylint = "*"
 black = "*"
 
 [requires]
