@@ -8,5 +8,5 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
 ```bash
 pipenv install
 pipenv shell
-python3 snapper/main.py
+python snapper/main.py
 ```
