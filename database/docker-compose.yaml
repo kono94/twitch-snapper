@@ -1,28 +1,40 @@
 version: "3.8"
 
-services:
-  db:
-    container_name: pg_container
-    image: postgres
-    restart: always
-    environment:
-      env_file: ../docker.env
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
-      POSTGRES_DB: test_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-  pgadmin:
-    container_name: pgadmin4_container
-    image: dpage/pgadmin4
-    restart: always
-    environment:
-      env_file: ../docker.env
-      PGADMIN_DEFAULT_EMAIL:
-      PGADMIN_DEFAULT_PASSWORD:
-    ports:
-      - "5050:80"
 volumes:
-  pgdata:
+  mariadb:
+    driver: local
+
+networks:
+  db:
+    driver: bridge
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    restart: always
+    environment:
+      env_file: ../docker.env
+      MYSQL_ROOT_PASSWORD:
+      MYSQL_USER:
+      MYSQL_PASSWORD:
+    expose:
+      - "3306"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb:/var/lib/mysql
+    networks:
+      db:
+
+  phpmyadmin:
+    image: phpmyadmin
+    restart: always
+    expose:
+      - "8080"
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_PORT=3306
+    networks:
+      db:
