@@ -1,4 +1,4 @@
-## Twitch Snapepr
+## Twitch Snapper
 
 ```bash
 sudo apt install python3.11-distutils
