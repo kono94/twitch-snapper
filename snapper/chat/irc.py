@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 import socket
@@ -23,53 +24,77 @@ class IRCMessage:
         return f"Username: {self.username} \t Message: {self.message}"
 
 
-class IRCClient(threading.Thread):
-    def __init__(self, host, port, nick, oauth, channel, callback=None):
+class IRCClient:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        nick: str,
+        oauth: str,
+        channel: str,
+        coroutine_queue: asyncio.Queue,
+    ):
         super().__init__()
-        self.host = host
-        self.port = port
-        self.nick = nick
-        self.password = oauth
+        self.HOST = host
+        self.PORT = port
+        self.NICK = nick
+        self.PASSWORD = oauth
         self.channel = channel
-        self.callback = callback
-        self.sock = socket.socket()
+        self.coroutine_queue = coroutine_queue
 
-    def send_message(self, message):
-        self.sock.send((message + "\r\n").encode())
+    async def start_and_listen(self):
+        await self.connect()
+        Log.debug(f"Waiting for messages in channel {self.channel}...")
+        await self._read_messages()
 
-    def join_channel(self, channel):
+    async def connect(self):
+        Log.debug("Connecting to Twitch chat...")
+        self.reader, self.writer = await self._open_connection()
+        Log.debug("Connection established!")
+        await self._join_channel(self.channel)
+
+    async def _join_channel(self, channel):
+        await self._send_message("PASS " + self.PASSWORD)
+        await self._send_message("NICK " + self.NICK)
+        await self._send_message("USER " + self.NICK + " 8 * :" + self.NICK)
         Log.debug(f"Joining channel {channel}...")
-        self.send_message("JOIN #" + channel)
+        await self._send_message("JOIN #" + channel)
 
-    def process_line(self, line):
-        command = line.split(" ")[1]
-        if command == IRCCommand.MESSAGE.value:
-            username_start = line.index("!") + 1
-            username_end = line.index("@")
-            username = line[username_start:username_end]
-            message_start = line.index(f"PRIVMSG #{self.channel} :") + len(
-                f"PRIVMSG #{self.channel} :"
-            )
-            message = line[message_start:]
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            return IRCMessage(timestamp=now, username=username, message=message)
-        elif line.startswith("PING"):
-            self.send_message(line.replace("PING", "PONG"))
+    async def _send_message(self, message: str) -> None:
+        self.writer.write((message + "\r\n").encode())
+        await self.writer.drain()
 
-    def run(self):
-        self.sock.connect((self.host, self.port))
-        self.send_message("PASS " + self.password)
-        self.send_message("NICK " + self.nick)
-        self.send_message("USER " + self.nick + " 8 * :" + self.nick)
+    async def _open_connection(
+        self,
+    ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        return await asyncio.open_connection(self.HOST, self.PORT)
 
+    async def _read_messages(self):
         while True:
-            data = b""
-            while not data.endswith(b"\r\n"):
-                new_data = self.sock.recv(124)
-                if not new_data:
-                    break
-                data += new_data
-            lines = data.decode().strip().split("\r\n")
-            for line in lines:
-                if self.callback is not None:
-                    self.callback(self.process_line(line))
+            try:
+                line = await self.reader.readline()
+            except Exception as err:
+                # try to reconnect
+                Log.warn(err)
+                await asyncio.sleep(2)
+                await self.connect()
+                continue
+
+            line = line.decode().strip()
+            if line == "":
+                continue
+            command = line.split(" ")[1]
+            if command == IRCCommand.MESSAGE.value:
+                username_start = line.index("!") + 1
+                username_end = line.index("@")
+                username = line[username_start:username_end]
+                message_start = line.index(f"PRIVMSG #{self.channel} :") + len(
+                    f"PRIVMSG #{self.channel} :"
+                )
+                message = line[message_start:]
+                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                await self.coroutine_queue.put(
+                    IRCMessage(timestamp=now, username=username, message=message)
+                )
+            elif line.startswith("PING"):
+                await self._send_message(line.replace("PING", "PONG"))
