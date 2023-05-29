@@ -12,11 +12,7 @@ services:
   mariadb:
     image: mariadb:10.6
     restart: always
-    environment:
-      env_file: ../docker.env
-      MYSQL_ROOT_PASSWORD:
-      MYSQL_USER:
-      MYSQL_PASSWORD:
+    env_file: docker.env
     expose:
       - "3306"
     ports:

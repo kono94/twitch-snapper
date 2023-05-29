@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -43,12 +44,11 @@ def about():
 if __name__ == "__main__":
     envs = get_envs()
     logging.basicConfig(
-        level=os.getenv("LOG_LEVEL")
-        if os.getenv("LOG_LEVEL") != ""
-        else envs["LOG_LEVEL"],
+        level=envs["LOG_LEVEL"],
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    executor = ThreadPoolExecutor(1)
-    #    executor.submit(track)
-    app.run(port=8080)
+    loop = asyncio.new_event_loop()
+    loop.create_task(track())
+    loop.run_forever()
+    # app.run(port=8080)
