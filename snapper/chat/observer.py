@@ -1,13 +1,9 @@
 import asyncio
 import datetime
 import logging
-import threading
-import time
 from dataclasses import dataclass
 
-from twitchAPI.twitch import Twitch
-
-from snapper.chat.irc import IRCClient, IRCMessage
+from snapper.chat.irc import IRCClient
 from snapper.util import Color, colored_string, get_envs
 
 Log = logging.getLogger(__name__)
@@ -35,36 +31,43 @@ class KeywordData:
         return f"count: {self.count} \t isActive: {self.is_active} \t active_circles: {self.active_circles} \t timestamp_activated: {self.timestamp_activated}"
 
 
-async def triggered(twitch: Twitch):
-    clip = await twitch.create_clip("lirik")
+class StreamObserver:
+    def __init__(self, twitch):
+        self.twitch = twitch
+        self.msg_queue = asyncio.Queue()
+        self.keyword_list = ["LUL", "KEKW"]
+        self.TRIGGER_THRESHOLD = 30
+        self.keyword_count = {
+            k: KeywordData(0, False, 0, None) for k in self.keyword_list
+        }
+        self.running = False
 
+    async def start_observing(self) -> None:
+        envs = get_envs()
 
-async def track() -> None:
-    Log.debug("This is main!")
-    envs = get_envs()
-    twitch = await Twitch(envs["TWITCH_APP_ID"], envs["TWITCH_APP_SECRET"])
-    Log.debug("IRC OAUTH: %s", {envs["IRC_OAUTH"]})
+        Log.debug("IRC OAUTH: %s", {envs["IRC_OAUTH"]})
 
-    msg_queue: asyncio.Queue = asyncio.Queue()
-    irc_client = IRCClient(
-        envs["IRC_HOST"],
-        int(envs["IRC_PORT"]),
-        envs["IRC_NICKNAME"],
-        envs["IRC_OAUTH"],
-        envs["IRC_CHANNEL"],
-        msg_queue,
-    )
+        irc_client = IRCClient(
+            envs["IRC_HOST"],
+            int(envs["IRC_PORT"]),
+            envs["IRC_NICKNAME"],
+            envs["IRC_OAUTH"],
+            envs["IRC_CHANNEL"],
+            self.msg_queue,
+        )
 
-    TRIGGER_THRESHOLD = 30
-    keyword_list: list[str] = ["LUL", "KEKW"]
-    keyword_count: dict[str, KeywordData] = {}
-    for k in keyword_list:
-        keyword_count[k] = KeywordData(0, False, 0, None)
+        self.running = True
+        asyncio.get_event_loop().create_task(irc_client.start_and_listen())
+        asyncio.get_event_loop().create_task(self._analyse_keyword_count())
+        asyncio.get_event_loop().create_task(self._message_listener())
 
-    async def analyse_keyword_count():
+    def stop_observing(self):
+        self.running = False
+
+    async def _analyse_keyword_count(self):
         pause = 3
-        while True:
-            for keyword, keyword_data in keyword_count.items():
+        while self.running:
+            for keyword, keyword_data in self.keyword_count.items():
                 Log.debug(
                     colored_string(
                         f"{keyword_data.count}x{keyword} per {pause} seconds", Color.RED
@@ -82,24 +85,24 @@ async def track() -> None:
                             f"After {pause * keyword_data.active_circles} seconds, \
                                     {keyword} was mentioned {keyword} times"
                         )
-                        if keyword_data.count >= TRIGGER_THRESHOLD:
+                        if keyword_data.count >= self.TRIGGER_THRESHOLD:
                             Log.info("Do something, e.g. create clip")
-                            await triggered(twitch)
+                            await self._triggered(self.twitch)
                         keyword_data.deactivate()
 
             await asyncio.sleep(pause)
 
-    async def message_listener():
-        while True:
-            message = await msg_queue.get()
+    async def _message_listener(self):
+        while self.running:
+            message = await self.msg_queue.get()
             if message is None:
                 return
-            for keyword, keyword_data in keyword_count.items():
+            for keyword, keyword_data in self.keyword_count.items():
                 if keyword in message.message:
                     keyword_data.count += 1
                     print(f"{keyword} count increased to: {keyword_data.count}")
             Log.debug(message)
 
-    asyncio.get_event_loop().create_task(irc_client.start_and_listen())
-    asyncio.get_event_loop().create_task(analyse_keyword_count())
-    asyncio.get_event_loop().create_task(message_listener())
+    async def _triggered(self, twitch):
+        clip = await twitch.create_clip("lirik")
+        pass

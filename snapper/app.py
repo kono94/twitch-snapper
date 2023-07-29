@@ -1,15 +1,15 @@
 import asyncio
 import logging
-import os
+import signal
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from flask import Flask, render_template
+from twitchAPI.twitch import Twitch
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from snapper.tracker import track
+from snapper.chat.observer import StreamObserver
 from snapper.util import get_envs, get_project_root
 
 app = Flask(
@@ -41,6 +41,12 @@ def about():
     return render_template("about.html")
 
 
+async def main(envs):
+    twitchAPI = await Twitch(envs["TWITCH_APP_ID"], envs["TWITCH_APP_SECRET"])
+    lck = StreamObserver(twitchAPI)
+    await lck.start_observing()
+
+
 if __name__ == "__main__":
     envs = get_envs()
     logging.basicConfig(
@@ -49,6 +55,8 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     loop = asyncio.new_event_loop()
-    loop.create_task(track())
+    asyncio.set_event_loop(loop)
+
+    loop.create_task(main(envs))
     loop.run_forever()
     # app.run(port=8080)
