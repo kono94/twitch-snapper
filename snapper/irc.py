@@ -1,10 +1,10 @@
 import asyncio
 import datetime
 import logging
-import socket
-import threading
 from dataclasses import dataclass
 from enum import Enum
+
+from snapper.util import get_envs
 
 Log = logging.getLogger(__name__)
 
@@ -25,6 +25,18 @@ class IRCMessage:
 
 
 class IRCClient:
+    @classmethod
+    def from_channel_name_only(cls, channel: str, coroutine_queue: asyncio.Queue):
+        envs = get_envs()
+        return cls(
+            envs["IRC_HOST"],
+            int(envs["IRC_PORT"]),
+            envs["IRC_NICKNAME"],
+            envs["IRC_OAUTH"],
+            channel,
+            coroutine_queue,
+        )
+
     def __init__(
         self,
         host: str,
