@@ -26,3 +26,12 @@ class Color(Enum):
 def colored_string(msg: str, color: Color) -> str:
     reset = "\x1b[0m"
     return color.value + msg + reset
+
+
+def clip_to_string(clip_instance):
+    # Create a list of key-value pairs as strings
+    attributes_str = [
+        f"{attr}: {value}" for attr, value in clip_instance.__dict__.items()
+    ]
+    # Join the list into a single formatted string
+    return "\n".join(attributes_str)
