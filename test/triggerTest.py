@@ -18,7 +18,7 @@ class TestSuit:
     async def test_trigger(self):
         print("test_trigger")
         observer = StreamObserver("lirik", self.twitchAPI)
-        observer._create_clip = MagicMock()
+        await observer._create_clip("kek", 10)
 
 
 class TestRunner(unittest.TestCase):

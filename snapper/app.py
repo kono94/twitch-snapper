@@ -18,6 +18,7 @@ app = Flask(
     template_folder=get_project_root() / "frontend/templates",
     static_folder=get_project_root() / "frontend/static",
 )
+
 Log = logging.getLogger(__name__)
 
 
@@ -44,7 +45,10 @@ def about():
 
 async def init_twitchAPI() -> Twitch:
     envs = get_envs()
-    twitch = await Twitch(envs["TWITCH_APP_ID"], envs["TWITCH_APP_SECRET"])
+    twitch = await Twitch(
+        envs["TWITCH_APP_ID"],
+        envs["TWITCH_APP_SECRET"],
+    )
     Log.debug("Logged into twitch")
     target_scope = [AuthScope.CLIPS_EDIT]
 
@@ -67,6 +71,10 @@ async def main():
 
 
 if __name__ == "__main__":
+    from snapper.database import init_db
+
+    asyncio.run(init_db())
+
     envs = get_envs()
     logging.basicConfig(
         level=envs["LOG_LEVEL"],

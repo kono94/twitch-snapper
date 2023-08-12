@@ -12,6 +12,8 @@ twitchapi = "*"
 pylint = "*"
 types-aiofiles = "*"
 aiofiles = "*"
+sqlalchemy = {extras = ["async"], version = "*"}
+aiomysql = "*"
 
 [dev-packages]
 black = "*"
