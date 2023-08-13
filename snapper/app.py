@@ -71,11 +71,12 @@ async def main():
 
 
 if __name__ == "__main__":
-    from snapper.database import init_db
-
-    asyncio.run(init_db())
-
     envs = get_envs()
+    if envs["APP_ENV"] == "dev":
+        from snapper.database import drop_and_create_db
+
+        asyncio.run(drop_and_create_db())
+
     logging.basicConfig(
         level=envs["LOG_LEVEL"],
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
