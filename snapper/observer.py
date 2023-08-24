@@ -2,30 +2,41 @@ import asyncio
 import datetime
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from twitchAPI.helper import first
-from twitchAPI.object import Clip, CreatedClip, TwitchUser
+from twitchAPI.object import CreatedClip, TwitchUser
 from twitchAPI.twitch import Twitch
 
-from snapper.database import AsyncSessionLocal, Clip
+from snapper.database import Clip, Stream, persist
 from snapper.irc import IRCClient
-from snapper.util import Color, clip_to_string, colored_string, get_envs
+from snapper.util import Color, colored_string
+
+
+class CustomLoggerAdapter(logging.LoggerAdapter):
+    """
+    Custom logger adapter to prepend a prefix to each log message.
+    """
+
+    def process(self, msg, kwargs):
+        prefix = self.extra["prefix"] if self.extra is not None else ""
+        return f"{prefix}: {msg}", kwargs
+
 
 Log = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(repr=True)
 class KeywordData:
     """
     Simple data class that is used as value for the keyword map.
     It contains information to a specific keyword (or rather emote)
     """
 
-    count: int
-    is_active: bool
-    active_intervals: int
-    timestamp_activated: str | None
+    count: int = 0
+    is_active: bool = False
+    active_intervals: int = 0
+    timestamp_activated: str | None = field(default=None)
 
     def activate(self):
         self.is_active = True
@@ -38,10 +49,6 @@ class KeywordData:
         self.timestamp_activated = None
         self.count = 0
 
-    def __str__(self) -> str:
-        return f"count: {self.count} \t isActive: {self.is_active} \t active_intervals: {self.active_intervals}\
-                \t timestamp_activated: {self.timestamp_activated}"
-
 
 class StreamObserver:
     """
@@ -50,48 +57,43 @@ class StreamObserver:
     in the stream by counting emotes in order to eventually invoke a trigger (for example the creation of a clip)
     """
 
-    def __init__(self, twitch_channel_name: str, twitch: Twitch):
+    def __init__(self, twitch: Twitch, stream: Stream):
         """Constructor
 
         Args:
             twitch_channel_name (str): The name of the channel, same as twitch.tv/<lirik>
             twitch (Twitch): An initialized twitchAPI object
         """
-        self.twitch_channel_name = twitch_channel_name
-        self.twitch: Twitch = twitch
+        self.twitch = twitch
+        self.stream = stream
         self.msg_queue: asyncio.Queue = asyncio.Queue()
-        self.keyword_list = [
-            "LUL",
-            "KEKW",
-            "Pog",
-        ]
-        self.PAUSE_INTERVAL = 3
-        self.ACTIVATION_THRESHOLD = 4
-        self.ACTIVATION_TIME_WINDOW = 15
-        assert (
-            self.ACTIVATION_TIME_WINDOW >= self.PAUSE_INTERVAL
-        ), "ACTIVATION_INTERVAL has to be >= than PAUSE_INTERVAL"
-        assert (
-            self.ACTIVATION_TIME_WINDOW % self.PAUSE_INTERVAL == 0
-        ), "ACTIVATION_INTERVAL has to be a multiply of PAUSE_INTERVAL"
-        self.TRIGGER_THRESHOLD = 30
-        self.MIN_TRIGGER_INTERVAL = 60
         self.last_time_triggered: float = 0
         self.keyword_count = {
-            keyword: KeywordData(0, False, 0, None) for keyword in self.keyword_list
+            keyword: KeywordData() for keyword in self.stream.keyword_list
         }
         self.running = False
+        self.Log = CustomLoggerAdapter(
+            logging.getLogger(__name__), {"prefix": self.stream.channel_name}
+        )
+
+        assert (
+            self.stream.activation_time_window >= self.stream.pause_interval
+        ), "ACTIVATION_INTERVAL has to be >= than PAUSE_INTERVAL"
+        assert (
+            self.stream.activation_time_window % self.stream.pause_interval == 0
+        ), "ACTIVATION_INTERVAL has to be a multiply of PAUSE_INTERVAL"
 
     async def start_observing(self) -> None:
         irc_client = IRCClient.from_channel_name_only(
-            self.twitch_channel_name,
+            self.stream.channel_name,
             self.msg_queue,
         )
 
         self.running = True
-        asyncio.get_event_loop().create_task(irc_client.start_and_listen())
-        asyncio.get_event_loop().create_task(self._analyse_keyword_count())
-        asyncio.get_event_loop().create_task(self._message_queue_consumer())
+        # store hard references because asyncio only does weak references
+        asyncio.create_task(irc_client.start_and_listen())
+        asyncio.create_task(self._analyse_keyword_count())
+        asyncio.create_task(self._message_queue_consumer())
 
     def stop_observing(self):
         self.running = False
@@ -108,8 +110,10 @@ class StreamObserver:
             for keyword, keyword_data in self.keyword_count.items():
                 if keyword in message.message:
                     keyword_data.count += 1
-                    Log.debug(f"{keyword} count increased to: {keyword_data.count}")
-            Log.debug(message)
+                    self.Log.debug(
+                        f"{keyword} count increased to: {keyword_data.count}"
+                    )
+            self.Log.debug(message)
 
     async def _analyse_keyword_count(self):
         """
@@ -126,15 +130,15 @@ class StreamObserver:
         while self.running:
             # Check every keyword (emote)
             for keyword, keyword_data in self.keyword_count.items():
-                Log.debug(
+                self.Log.debug(
                     colored_string(
-                        f"{keyword_data.count}x{keyword} per {self.PAUSE_INTERVAL} seconds",
+                        f"{keyword_data.count}x{keyword} per {self.stream.pause_interval} seconds",
                         Color.RED,
                     )
                 )
                 await self._check_keyword(keyword, keyword_data)
 
-            await asyncio.sleep(self.PAUSE_INTERVAL)
+            await asyncio.sleep(self.stream.pause_interval)
 
     async def _check_keyword(self, keyword: str, keyword_data: KeywordData):
         # When the keyword is not in activate-status, check if the keyword is mentioned enough times in the last
@@ -143,7 +147,7 @@ class StreamObserver:
         if not keyword_data.is_active:
             # Check trigger threshold and if the last trigger happened some time ago to not spam triggers (and potential clips)
             if keyword_data.count >= 3 and self._is_trigger_ready_again():
-                Log.info(
+                self.Log.info(
                     colored_string(
                         f"Activate {keyword}!",
                         Color.YELLOW,
@@ -162,32 +166,40 @@ class StreamObserver:
             # Counted amount of keywords in the activation time window, this time frame is now over
             if (
                 keyword_data.active_intervals
-                >= self.ACTIVATION_TIME_WINDOW / self.PAUSE_INTERVAL
+                >= self.stream.activation_time_window / self.stream.pause_interval
             ):
                 await self._activation_time_window_ended(keyword, keyword_data)
 
     async def _activation_time_window_ended(
         self, keyword: str, keyword_data: KeywordData
     ):
-        Log.info(
+        self.Log.info(
             colored_string(
-                f"After {self.ACTIVATION_TIME_WINDOW} seconds, \
+                f"After {self.stream.activation_time_window} seconds, \
                 {keyword} was mentioned {keyword_data.count} times",
                 Color.YELLOW,
             )
         )
         # The amount counted is high enough to finally invoke the trigger.
         # Something special happened in the stream when this triggers, create a clip or sth
-        if keyword_data.count >= self.TRIGGER_THRESHOLD:
+        if keyword_data.count >= self.stream.trigger_threshold:
             await self._invoke_trigger(keyword, keyword_data)
         keyword_data.deactivate()
 
     async def _invoke_trigger(self, keyword: str, keyword_data: KeywordData):
-        Log.info("Do something, e.g. create clip")
+        self.Log.info("Do something, e.g. create clip")
         try:
-            await self._create_clip(keyword, keyword_data.count)
+            new_clip_id = await self._create_clip(keyword, keyword_data.count)
+            # Save the clip to the database using async session
+            new_clip = Clip(
+                twitch_clip_id=new_clip_id,
+                stream_id=self.stream.id,
+                keyword_trigger=keyword,
+                keyword_count=keyword_data.count,
+            )
+            await persist(new_clip)
         except Exception as e:
-            Log.error(e)
+            self.Log.error(e)
 
     def _is_trigger_ready_again(self) -> bool:
         """
@@ -198,10 +210,10 @@ class StreamObserver:
             bool: Whether the stream might invoke a trigger again or not
         """
         last_trigger_time: float = time.time() - self.last_time_triggered
-        if last_trigger_time < self.MIN_TRIGGER_INTERVAL:
-            Log.warn(
-                f"Triggered on channel {self.twitch_channel_name}, but last trigger was {last_trigger_time} seconds ago,  \
-                but MIN_TRIGGER_INTERVAL is {self.MIN_TRIGGER_INTERVAL}."
+        if last_trigger_time < self.stream.min_trigger_pause:
+            self.Log.warn(
+                f"Triggered on channel {self.stream.channel_name}, but last trigger was {last_trigger_time} seconds ago,  \
+                but MIN_TRIGGER_PAUSE is {self.stream.min_trigger_pause}."
             )
             return False
         else:
@@ -222,29 +234,19 @@ class StreamObserver:
         """
 
         user_info: TwitchUser | None = await first(
-            self.twitch.get_users(logins=[self.twitch_channel_name])
+            self.twitch.get_users(logins=[self.stream.channel_name])
         )
         if not user_info:
             raise Exception(
-                f"Cannot extract broadcast_id for channel {self.twitch_channel_name}."
+                f"Cannot extract broadcast_id for channel {self.stream.channel_name}."
             )
 
         createdClip: CreatedClip = await self.twitch.create_clip(
             user_info.id, has_delay=True
         )
-        Log.info(
+        self.Log.info(
             f"Created clip with id: {createdClip.id} and edit-url {createdClip.edit_url}"
         )
-        # Save the clip to the database using async session
-        async with AsyncSessionLocal() as session:
-            new_clip = Clip(
-                channel_name=self.twitch_channel_name,
-                clip_id=createdClip.id,
-                keyword_trigger=keyword,
-                keyword_amount=keyword_amount,
-            )
-            session.add(new_clip)
-            await session.commit()
 
         return createdClip.id
 
