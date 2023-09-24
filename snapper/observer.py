@@ -13,7 +13,7 @@ from snapper.irc import IRCClient
 from snapper.util import Color, colored_string
 
 
-class CustomLoggerAdapter(logging.LoggerAdapter):
+class MessagePrefixLogger(logging.LoggerAdapter):
     """
     Custom logger adapter to prepend a prefix to each log message.
     """
@@ -21,9 +21,6 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
     def process(self, msg, kwargs):
         prefix = self.extra["prefix"] if self.extra is not None else ""
         return f"{prefix}: {msg}", kwargs
-
-
-Log = logging.getLogger(__name__)
 
 
 @dataclass(repr=True)
@@ -72,7 +69,7 @@ class StreamObserver:
             keyword: KeywordData() for keyword in self.stream.keyword_list
         }
         self.running = False
-        self.Log = CustomLoggerAdapter(
+        self.Log = MessagePrefixLogger(
             logging.getLogger(__name__), {"prefix": self.stream.channel_name}
         )
 
@@ -249,5 +246,3 @@ class StreamObserver:
         )
 
         return createdClip.id
-
-        # clip: Clip | None = await first(self.twitch.get_clips(clip_id=[createdClip.id]))

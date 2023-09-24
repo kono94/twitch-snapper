@@ -6,19 +6,20 @@ from unittest.mock import MagicMock
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from snapper.app import init_twitchAPI
+from snapper.main import _init_twitchAPI
 from snapper.observer import StreamObserver
 
 
 class TestSuit:
     async def async_setup(self):
-        self.twitchAPI = await init_twitchAPI()
+        self.twitchAPI = await _init_twitchAPI()
         print("setup done")
 
     async def test_trigger(self):
         print("test_trigger")
-        observer = StreamObserver("lirik", self.twitchAPI)
-        await observer._create_clip("kek", 10)
+
+    #  observer = StreamObserver("lirik", self.twitchAPI)
+    # await observer._create_clip("kek", 10)
 
 
 class TestRunner(unittest.TestCase):

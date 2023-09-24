@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import Sequence, Type, TypeVar
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func, select
+from sqlalchemy import DateTime, ForeignKey, String, func, select
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncEngine,
@@ -10,11 +9,13 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from twitchAPI.helper import first
+from twitchAPI.object import TwitchUser
+from twitchAPI.twitch import Twitch
 
-from snapper.util import get_envs
+from snapper.main import ENVS
 
-envs = get_envs()
-DATABASE_URL = f'mysql+aiomysql://{envs["DATABASE_USER"]}:{envs["DATABASE_PASSWORD"]}@localhost/{envs["DATABASE_NAME"]}'
+DATABASE_URL = f'mysql+aiomysql://{ENVS["DATABASE_USER"]}:{ENVS["DATABASE_PASSWORD"]}@localhost/{ENVS["DATABASE_NAME"]}'
 
 # Create async engine and session
 engine: AsyncEngine = create_async_engine(DATABASE_URL, echo=True)
@@ -32,14 +33,9 @@ class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 
-async def drop_and_create_db():
-    """Completely reset the database. Should only be used in "dev"-mode.
-    Double checking in __main__ method and here as well.
-    """
-    if envs["APP_ENV"] == "dev":
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-            await conn.run_sync(Base.metadata.create_all)
+################
+### Entities ###
+################
 
 
 class Stream(Base):
@@ -124,6 +120,9 @@ class Clip(Base):
         self.keyword_count = keyword_count
 
 
+########################
+### Helper Functions ###
+########################
 T = TypeVar("T", Clip, Stream)
 
 
@@ -137,3 +136,45 @@ async def get_all(obj: Type[T]) -> Sequence[T]:
     async with AsyncSessionLocal() as session:
         results = await session.execute(select(obj))
         return results.scalars().all()
+
+
+async def setup_dev_db(twitchAPI: Twitch):
+    """Completely reset the database. Should only be used in "dev"-mode.
+    Double checking in __main__ method and here as well.
+    """
+    if ENVS["APP_ENV"] == "dev":
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+
+        async def create_stream(twitchAPI, channel_name, keyword_list, **kwargs):
+            user_info: TwitchUser | None = await first(
+                twitchAPI.get_users(logins=[channel_name])
+            )
+            if not user_info:
+                raise Exception(
+                    f"Cannot extract broadcast_id for channel {channel_name}."
+                )
+            stream = Stream(
+                channel_name=channel_name,
+                broadcaster_id=user_info.id,
+                keyword_list=keyword_list,
+                min_trigger_interval=10,
+                **kwargs,
+            )
+            return stream
+
+        lirik_stream = await create_stream(
+            twitchAPI, "lirik", ["KEK", "OWO", "LUL"], trigger_threshold=5
+        )
+        await persist(lirik_stream)
+
+        tarik_stream = await create_stream(
+            twitchAPI, "tarik", ["KEK", "OWO", "LUL"], trigger_threshold=5
+        )
+        await persist(tarik_stream)
+
+        lck_stream = await create_stream(
+            twitchAPI, "lck", ["KEK", "OWO", "LUL"], trigger_threshold=5
+        )
+        await persist(lck_stream)
