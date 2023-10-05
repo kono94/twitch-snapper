@@ -18,3 +18,21 @@ docker compose up -d
 
 MariaDB is running on port 3306
 phpMyAdmin is running on port 8080
+
+### Alembic
+
+```bash
+alembic init -t async alembic
+```
+
+Empty database, save the first revision:
+
+```bash
+alembic revision --autogenerate -m "Initial migration"
+```
+
+Apply Migration:
+
+```bash
+alembic upgrade head
+```

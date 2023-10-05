@@ -1,20 +1,19 @@
 ### Clips
+
 POST https://api.twitch.tv/helix/clips
 
-broadcaster_id  : string
+broadcaster_id : string
 has_delay : boolean
 
 Returns:
 edit_url: string
 id: string
 
-
 ### User Info
 
 GET https://api.twitch.tv/helix/users
 
 id: id
-
 
 ### Video (last boradcast)
 

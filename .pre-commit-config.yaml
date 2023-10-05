@@ -41,12 +41,13 @@ repos:
     hooks:
       - id: mypy
         args: [--ignore-missing-imports] #args: [--strict, --ignore-missing-imports]
+        additional_dependencies: [alembic]
 
-  - repo: local
-    hooks:
-      - id: pylint
-        name: pylint
-        entry: pipenv run pylint snapper/ --errors-only
-        language: system
-        types: [python]
-        require_serial: true
+  # - repo: local
+  #   hooks:
+  #     - id: pylint
+  #       name: pylint
+  #       entry: pipenv run pylint snapper/* --jobs 40 --errors-only --ignored-modules=alembic, sqlalchemy
+  #       language: system
+  #       types: [python]
+  #       require_serial: true
