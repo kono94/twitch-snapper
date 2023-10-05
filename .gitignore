@@ -1,6 +1,10 @@
 #custom
 .env
 .env.secret
+trash/
+secrets
+docker.env
+misc/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,15 +1,15 @@
 {
-    "python.analysis.typeCheckingMode": "basic",
-    "[python]": {
-        "editor.tabSize": 4
-    },
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": true
-    },
-    "editor.formatOnSave": true,
-    "python.formatting.provider": "black",
-    "python.linting.lintOnSave": true,
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true,
-    "python.pipenvPath":"~/.local/share/virtualenvs/twitch-snapper-f48Jl0GQ/bin//python"   
+  "python.analysis.typeCheckingMode": "basic",
+  "[python]": {
+    "editor.tabSize": 4
+  },
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  },
+  "editor.formatOnSave": true,
+  "python.formatting.provider": "black",
+  "python.linting.lintOnSave": true,
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.linting.pylintArgs": ["--logging-format-style=fstr"]
 }

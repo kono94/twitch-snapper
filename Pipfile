@@ -7,8 +7,17 @@ name = "pypi"
 numpy = "==1.24.1"
 python-dotenv = "*"
 pre-commit = "*"
+flask = "*"
+twitchapi = "*"
+pylint = "*"
+types-aiofiles = "*"
+aiofiles = "*"
+sqlalchemy = {extras = ["async"], version = "*"}
+aiomysql = "*"
+alembic = "*"
 
 [dev-packages]
+black = "*"
 
 [requires]
 python_version = "3.11"

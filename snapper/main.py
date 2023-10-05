@@ -1,31 +1,69 @@
+import asyncio
 import logging
 import sys
 from pathlib import Path
+from threading import Thread
+from typing import Any
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+from dotenv import dotenv_values
+from twitchAPI.twitch import Twitch
+from twitchAPI.types import AuthScope
 
-from snapper.chat.irc import IRC
-from snapper.util import get_envs
+PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
+ENVS: dict[str, Any] = dotenv_values(PROJECT_ROOT / ".env")
+sys.path.append(str(PROJECT_ROOT))
+
+Log = logging.getLogger(__name__)
 
 
-def main() -> None:
-    logger = logging.getLogger(__name__)
+async def _init_twitchAPI() -> Twitch:
+    twitch = await Twitch(
+        ENVS["TWITCH_APP_ID"],
+        ENVS["TWITCH_APP_SECRET"],
+    )
+    Log.debug("Logged into twitch")
+
+    target_scope = [AuthScope.CLIPS_EDIT]
+    token = ENVS["TWITCH_CLIENT_TOKEN"]
+    refresh_token = ENVS["TWITCH_CLIENT_REFRESH_TOKEN"]
+    await twitch.set_user_authentication(token, target_scope, refresh_token)
+    Log.debug("Set User Authentication")
+    return twitch
+
+
+async def _main():
+    from snapper.database import Stream, get_all, setup_dev_db
+    from snapper.observer import StreamObserver
+
+    twitchAPI: Twitch = await _init_twitchAPI()
+
+    if ENVS["APP_ENV"] == "dev":
+        await setup_dev_db(twitchAPI)
+
+    for stream in await get_all(Stream):
+        try:
+            oberserver = StreamObserver(twitchAPI, stream)
+            await oberserver.start_observing()
+        except AssertionError as e:
+            Log.error(e)
+
+    stop_event = asyncio.Event()  # Create an asyncio.Event
+    await stop_event.wait()  # This will block the main coroutine indefinitely
+
+
+if __name__ == "__main__":
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=ENVS["LOG_LEVEL"],
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    logger.debug("This is main!")
-    envs = get_envs()
-    logger.debug(f'IRC OAUTH: {envs["IRC_OAUTH"]}')
-    irc = IRC(
-        nickname=envs["IRC_NICKNAME"],
-        password=envs["IRC_OAUTH"],
-        channel=envs["IRC_CHANNEL"],
-    )
-    irc.start()
+    from snapper.app import app
 
+    def run_flask_app():
+        app.run(port=8088)
 
-if __name__ == "__main__":
-    main()
+    flask_thread = Thread(target=run_flask_app)
+    flask_thread.start()
+
+    asyncio.run(_main())
