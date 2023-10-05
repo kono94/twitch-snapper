@@ -1,0 +1,17 @@
+[
+  {
+    "channel_name": "lirik",
+    "emotes": ["KEK", "OWO", "LUL"],
+    "trigger_threshold": 5
+  },
+  {
+    "channel_name": "tarik",
+    "emotes": ["KEK", "OWO", "LUL"],
+    "trigger_threshold": 5
+  },
+  {
+    "channel_name": "zackrawrr",
+    "emotes": ["KEK", "OWO", "LUL"],
+    "trigger_threshold": 5
+  }
+]

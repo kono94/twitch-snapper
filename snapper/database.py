@@ -1,4 +1,4 @@
-from typing import Sequence, Type, TypeVar
+from typing import Any, Sequence, Type, TypeVar
 
 from sqlalchemy import DateTime, ForeignKey, String, func, select
 from sqlalchemy.ext.asyncio import (
@@ -138,7 +138,7 @@ async def get_all(obj: Type[T]) -> Sequence[T]:
         return results.scalars().all()
 
 
-async def setup_dev_db(twitchAPI: Twitch):
+async def setup_dev_db(twitchAPI: Twitch, test_channels: list[dict[str, Any]]):
     """Completely reset the database. Should only be used in "dev"-mode.
     Double checking in __main__ method and here as well.
     """
@@ -164,17 +164,11 @@ async def setup_dev_db(twitchAPI: Twitch):
             )
             return stream
 
-        lirik_stream = await create_stream(
-            twitchAPI, "lirik", ["KEK", "OWO", "LUL"], trigger_threshold=5
-        )
-        await persist(lirik_stream)
-
-        tarik_stream = await create_stream(
-            twitchAPI, "tarik", ["KEK", "OWO", "LUL"], trigger_threshold=5
-        )
-        await persist(tarik_stream)
-
-        lck_stream = await create_stream(
-            twitchAPI, "lck", ["KEK", "OWO", "LUL"], trigger_threshold=5
-        )
-        await persist(lck_stream)
+        for channel in test_channels:
+            c = await create_stream(
+                twitchAPI,
+                channel["channel_name"],
+                channel["emotes"],
+                trigger_threshold=channel["trigger_threshold"],
+            )
+            await persist(c)
