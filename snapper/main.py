@@ -41,12 +41,13 @@ async def _main():
     for stream in await get_all(Stream):
         try:
             oberserver = StreamObserver(twitchAPI, stream)
-            await oberserver.start_observing()
+        # await oberserver.start_observing()
         except AssertionError as e:
             Log.error(e)
 
-    stop_event = asyncio.Event()  # Create an asyncio.Event
-    await stop_event.wait()  # This will block the main coroutine indefinitely
+
+#  stop_event = asyncio.Event()  # Create an asyncio.Event
+# await stop_event.wait()  # This will block the main coroutine indefinitely
 
 
 async def read_test_channel_file_async() -> list:
@@ -65,7 +66,8 @@ if __name__ == "__main__":
 
     from snapper.app import app
 
-    flask_thread = Thread(target=lambda: app.run(port=8088))
-    flask_thread.start()
-
     asyncio.run(_main())
+
+    app.run(port=8088, debug=True, use_reloader=True)
+    # flask_thread = Thread(target=lambda: app.run(port=8088, debug=True, use_reloader=True))
+    # flask_thread.start()

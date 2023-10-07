@@ -1,30 +1,31 @@
-from flask import Flask, render_template
+from quart import Quart, render_template
 
+from snapper.database import Clip, Stream, get_all
 from snapper.main import PROJECT_ROOT
 
-app = Flask(
+app: Quart = Quart(
     __name__,
-    template_folder=PROJECT_ROOT / "frontend/templates",
-    static_folder=PROJECT_ROOT / "frontend/static",
+    template_folder=str(PROJECT_ROOT / "frontend/templates"),
+    static_folder=str(PROJECT_ROOT / "frontend/static"),
 )
 
 
 @app.route("/home")
-def home():
-    return render_template("index.html")
+async def home():
+    return await render_template("index.html")
 
 
 @app.route("/")
-def index():
-    return render_template("index.html")
+async def index():
+    return await render_template("index.html")
 
 
 @app.route("/clips")
-def clips():
-    clips = [{"title": f"Clip #{id}"} for id in range(0, 5)]
-    return render_template("clips.html", clips=clips)
+async def clips():
+    clips = await get_all(Clip)
+    return await render_template("clips.html", clips=clips)
 
 
 @app.route("/about")
-def about():
-    return render_template("about.html")
+async def about():
+    return await render_template("about.html")
