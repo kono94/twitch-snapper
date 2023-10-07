@@ -6,17 +6,13 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from snapper.database import Base
-from snapper.util import get_envs
-
-envs = get_envs()
+from snapper.database import DATABASE_URL, Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-SQLALCHEMY_DATABASE_URI = f'mysql+aiomysql://{envs["DATABASE_USER"]}:{envs["DATABASE_PASSWORD"]}@localhost/{envs["DATABASE_NAME"]}'
-config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URI)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
