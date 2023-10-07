@@ -5,8 +5,8 @@ from snapper.main import PROJECT_ROOT
 
 app: Quart = Quart(
     __name__,
-    template_folder=str(PROJECT_ROOT / "frontend/templates"),
-    static_folder=str(PROJECT_ROOT / "frontend/static"),
+    template_folder=str(PROJECT_ROOT / "snapper/frontend/templates"),
+    static_folder=str(PROJECT_ROOT / "snapper/frontend/static"),
 )
 
 
