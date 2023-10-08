@@ -1,6 +1,15 @@
 from typing import Any, Sequence, Type, TypeVar
 
-from sqlalchemy import DateTime, ForeignKey, String, func, select
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    String,
+    UnaryExpression,
+    asc,
+    desc,
+    func,
+    select,
+)
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncEngine,
@@ -91,6 +100,12 @@ class Stream(Base):
     def keyword_list(self, keyword_list):
         self._keyword_list_data = ",".join(map(str, keyword_list))
 
+    def to_dict(self):
+        serialized_data = {
+            c.name: getattr(self, c.name) for c in self.__table__.columns
+        }
+        return serialized_data
+
 
 class Clip(Base):
     __tablename__ = "clip"
@@ -122,6 +137,13 @@ class Clip(Base):
         self.keyword_trigger = keyword_trigger
         self.keyword_count = keyword_count
 
+    def to_dict(self):
+        serialized_data = {
+            c.name: getattr(self, c.name) for c in self.__table__.columns
+        }
+        serialized_data["stream"] = self.stream.to_dict() if self.stream else None
+        return serialized_data
+
 
 ########################
 ### Helper Functions ###
@@ -138,4 +160,22 @@ async def persist(obj: T):
 async def get_all(obj: Type[T]) -> Sequence[T]:
     async with AsyncSessionLocal() as session:
         results = await session.execute(select(obj).options(joinedload("*")))
+        return results.scalars().all()
+
+
+async def get_by_page_and_sort(
+    obj: Type[T], page: int, per_page: int, sort_by: UnaryExpression
+) -> Sequence[T]:
+    async with AsyncSessionLocal() as session:
+        # Calculate offset
+        offset = (page - 1) * per_page
+
+        # Fetch records with limit and offset
+        results = await session.execute(
+            select(obj)
+            .options(joinedload("*"))
+            .order_by(sort_by)
+            .limit(per_page)
+            .offset(offset)
+        )
         return results.scalars().all()
