@@ -1,15 +1,16 @@
 {% extends 'base.html' %} {% block content %}
-<h1>{% block title %} Clips {% endblock %}</h1>
+<h1 class="bg-secondary centered">{% block title %} Clips {% endblock %}</h1>
 
 <div class="clips">
   {% for clip in clips %}
-  <div>
-    {{ clip.id }}
+  <div class="bg-secondary">
+    {{ clip.id }} {{ clip.stream.channel_name }}
 
     <iframe
       src="https://clips.twitch.tv/embed?clip={{ clip.twitch_clip_id }}&parent=localhost"
       allowfullscreen
       style="position: relative; height: 100%; width: 100%"
+      frameborder="0"
     >
     </iframe>
   </div>
