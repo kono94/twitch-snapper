@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass, field
 
 from twitchAPI.helper import first
+from twitchAPI.object import Clip as TwitchClip
 from twitchAPI.object import CreatedClip, TwitchUser
 from twitchAPI.twitch import Twitch
 
@@ -186,11 +187,16 @@ class StreamObserver:
     async def _invoke_trigger(self, keyword: str, keyword_data: KeywordData):
         self.Log.info("Do something, e.g. create clip")
         try:
-            new_clip_id = await self._create_clip(keyword, keyword_data.count)
+            new_clip_id, thumbnail_url, title, view_count = await self._create_clip(
+                keyword, keyword_data.count
+            )
             # Save the clip to the database using async session
-            new_clip = Clip(
+            new_clip: Clip = Clip(
                 twitch_clip_id=new_clip_id,
                 stream_id=self.stream.id,
+                thumbnail_url=thumbnail_url,
+                title=title,
+                view_count=view_count,
                 keyword_trigger=keyword,
                 keyword_count=keyword_data.count,
             )
@@ -217,7 +223,9 @@ class StreamObserver:
             self.last_time_triggered = time.time()
             return True
 
-    async def _create_clip(self, keyword: str, keyword_amount: int) -> str:
+    async def _create_clip(
+        self, keyword: str, keyword_amount: int
+    ) -> tuple[str, str, str, int]:
         """
         Uses the twitchAPI to create a clip right after the moment the special event was
         notices by the trigger logic.
@@ -238,11 +246,17 @@ class StreamObserver:
                 f"Cannot extract broadcast_id for channel {self.stream.channel_name}."
             )
 
-        createdClip: CreatedClip = await self.twitch.create_clip(
+        created_clip: CreatedClip = await self.twitch.create_clip(
             user_info.id, has_delay=True
         )
         self.Log.info(
-            f"Created clip with id: {createdClip.id} and edit-url {createdClip.edit_url}"
+            f"Created clip with id: {created_clip.id} and edit-url {created_clip.edit_url}"
         )
 
-        return createdClip.id
+        clip: TwitchClip | None = None
+        while (
+            clip := await first(self.twitch.get_clips(clip_id=[created_clip.id]))
+        ) is None:
+            await asyncio.sleep(1)
+
+        return created_clip.id, clip.thumbnail_url, clip.title, clip.view_count
