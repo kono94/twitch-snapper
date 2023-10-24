@@ -1,7 +1,19 @@
 import logging
 from typing import Any, Sequence, Type, TypeVar
 
-from sqlalchemy import DateTime, ForeignKey, String, UnaryExpression, and_, func, select
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    ScalarResult,
+    String,
+    Table,
+    UnaryExpression,
+    and_,
+    func,
+    select,
+)
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncEngine,
@@ -39,9 +51,33 @@ class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 
+##########################
+### Association Tables ###
+##########################
+
+# What keywords are active for which streams
+stream_keyword_association = Table(
+    "stream_keyword_association",
+    Base.metadata,
+    Column("stream_id", Integer, ForeignKey("stream.id"), primary_key=True),
+    Column("keyword_id", Integer, ForeignKey("keyword.id"), primary_key=True),
+)
+
+
 ################
 ### Entities ###
 ################
+
+
+class Keyword(Base):
+    __tablename__ = "keyword"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    value: Mapped[str] = mapped_column(String(255))
+    image_url: Mapped[str] = mapped_column(String(512))
+    streams: Mapped[list["Stream"]] = relationship(
+        secondary=stream_keyword_association, back_populates="keywords"
+    )
 
 
 class Stream(Base):
@@ -50,7 +86,10 @@ class Stream(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     channel_name: Mapped[str] = mapped_column(String(255))
     broadcaster_id: Mapped[str] = mapped_column(String(255), unique=True)
-    _keyword_list_data: Mapped[str] = mapped_column("keyword_list", String(1000))
+    keywords: Mapped[list[Keyword]] = relationship(
+        secondary=stream_keyword_association, back_populates="streams"
+    )
+    clips: Mapped[list["Clip"]] = relationship(back_populates="stream")
     pause_interval: Mapped[int] = mapped_column()
     activation_time_window: Mapped[int] = mapped_column()
     activation_threshold: Mapped[int] = mapped_column()
@@ -69,7 +108,6 @@ class Stream(Base):
         self,
         channel_name: str,
         broadcaster_id: str,
-        keyword_list: list[str] = ["LUL", "KEKW", "POG"],
         pause_interval: int = 3,
         activation_threshold: int = 4,
         activation_time_window: int = 15,
@@ -79,20 +117,11 @@ class Stream(Base):
         super().__init__()
         self.channel_name = channel_name
         self.broadcaster_id = broadcaster_id
-        self.keyword_list = keyword_list
         self.pause_interval = pause_interval
         self.activation_threshold = activation_threshold
         self.activation_time_window = activation_time_window
         self.trigger_threshold = trigger_threshold
         self.min_trigger_pause = min_trigger_interval
-
-    @property
-    def keyword_list(self):
-        return self._keyword_list_data.split(",") if self._keyword_list_data else []
-
-    @keyword_list.setter
-    def keyword_list(self, keyword_list):
-        self._keyword_list_data = ",".join(map(str, keyword_list))
 
     def to_dict(self):
         serialized_data = {
@@ -109,13 +138,14 @@ class Clip(Base):
     thumbnail_url: Mapped[str] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(512))
     view_count: Mapped[int] = mapped_column()
-    stream_id: Mapped[int] = mapped_column(
-        ForeignKey("stream.id")
-    )  # ForeignKey to Stream's id
+    stream_id: Mapped[int] = mapped_column(ForeignKey("stream.id"))
     stream: Mapped[Stream] = relationship(
         "Stream"
     )  # Relationship to Stream without backref
-    keyword_trigger: Mapped[str] = mapped_column(String(255))
+    keyword_id: Mapped[int] = mapped_column(ForeignKey("keyword.id"))
+    keyword_trigger: Mapped[Keyword] = relationship(
+        "Keyword"
+    )  # Relationship to Stream without backref
     keyword_count: Mapped[int] = mapped_column()
     created: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()  # pylint: disable=E1102
@@ -127,8 +157,8 @@ class Clip(Base):
         thumbnail_url: str,
         title: str,
         view_count: int,
-        stream_id: int,
-        keyword_trigger: str,
+        stream: Stream,
+        keyword_trigger: Keyword,
         keyword_count: int,
     ):
         super().__init__()
@@ -136,7 +166,7 @@ class Clip(Base):
         self.thumbnail_url = thumbnail_url
         self.title = title
         self.view_count = view_count
-        self.stream_id = stream_id
+        self.stream = stream
         self.keyword_trigger = keyword_trigger
         self.keyword_count = keyword_count
 
@@ -160,10 +190,10 @@ async def persist(obj: T):
         await session.commit()
 
 
-async def get_all(obj: Type[T]) -> Sequence[T]:
+async def get_all(obj: Type[T]) -> ScalarResult[T]:
     async with AsyncSessionLocal() as session:
         results = await session.execute(select(obj).options(joinedload("*")))
-        return results.scalars().all()
+        return results.scalars().unique()
 
 
 async def get_by_page_and_sort(
