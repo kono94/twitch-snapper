@@ -14,3 +14,8 @@
   - ✅ A server-side rendered site might be sufficient for the moment
   - ✅ Simply display the saved clip on a static website
   - Sort function for keywords and streamers
+- ✅ <b>Make frontend dynamic via infinite scrolling</b>
+- Refactor database model
+  - Keywords will become a seperate table with image; This way, one can sort clips by individual keywords + easily construct a filter page based on keyword.
+    This can also be done by just selecting all keywords from all clips, but this does not contain attributes for keywords like images
+  - Cross table for streams and keywords that include keyword_trigger per individual keyword
