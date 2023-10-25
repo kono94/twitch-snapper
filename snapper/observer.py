@@ -9,7 +9,7 @@ from twitchAPI.object import Clip as TwitchClip
 from twitchAPI.object import CreatedClip, TwitchUser
 from twitchAPI.twitch import Twitch
 
-from snapper.database import Clip, Keyword, Stream, persist
+from snapper.database import Clip, Keyword, Stream, TransactionHandler
 from snapper.irc import IRCClient
 from snapper.util import Color, colored_string
 
@@ -198,7 +198,7 @@ class StreamObserver:
                 keyword_trigger=keyword,
                 keyword_count=keyword_data.count,
             )
-            await persist(new_clip)
+            await TransactionHandler.persist(new_clip)
             self.Log.info(f"Saving clip to database! {vars(new_clip)}")
         except Exception as e:
             self.Log.error(e)
@@ -246,7 +246,9 @@ class StreamObserver:
             )
 
         try:
-            created_clip = await self.twitch.create_clip(user_info.id, has_delay=True)
+            created_clip: CreatedClip = await self.twitch.create_clip(
+                user_info.id, has_delay=True
+            )
         except Exception as _:
             raise Exception(
                 f"Cannot create clip for the the broadcaster with id={user_info.id}"
