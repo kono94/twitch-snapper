@@ -3,13 +3,12 @@ from datetime import datetime
 from quart import Quart, jsonify, render_template, request
 from sqlalchemy import asc, desc
 
-from snapper.database import Clip, Stream, get_all, get_by_page_and_sort
-from snapper.main import PROJECT_ROOT
+from snapper.database import Clip, TransactionHandler
 
 app: Quart = Quart(
     __name__,
-    template_folder=str(PROJECT_ROOT / "snapper/frontend/templates"),
-    static_folder=str(PROJECT_ROOT / "snapper/frontend/static"),
+    template_folder="frontend/templates/",
+    static_folder="frontend/static/",
 )
 
 
@@ -25,7 +24,7 @@ async def index():
 
 @app.route("/clips")
 async def clips():
-    clips = await get_all(Clip)
+    clips = await TransactionHandler.get_all(Clip)
     return await render_template("clips.html", clips=clips)
 
 
@@ -53,7 +52,9 @@ async def api_clips():
         order_by = desc(Clip.created)  # Default sort
 
     # Fetch and sort clips from the database, skipping the clips for previous pages
-    clips = await get_by_page_and_sort(Clip, page, per_page, order_by, utc_timestamp)
+    clips = await TransactionHandler.get_by_page_and_sort(
+        Clip, page, per_page, order_by, utc_timestamp
+    )
 
     return jsonify([clip.to_dict() for clip in clips])
 
