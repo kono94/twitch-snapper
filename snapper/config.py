@@ -19,6 +19,6 @@ def configure_logging():
 def configure_environment(env_file: str = ".env"):
     script_location = Path(__file__).resolve().parent
     dotenv_path = script_location.parent / env_file
-    Log.info(
+    print(
         f"Loading environment variables; Successful={load_dotenv(dotenv_path=dotenv_path)}"
     )

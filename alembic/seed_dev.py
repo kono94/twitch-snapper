@@ -6,7 +6,7 @@ from snapper.database import TransactionHandler
 
 
 async def seed_db():
-    async with TransactionHandler._engine.connect() as conn:
+    async with TransactionHandler.get_engine().connect() as conn:
         await conn.execute(
             text(
                 """INSERT INTO `keyword` (`id`, `value`, `image_url`)
