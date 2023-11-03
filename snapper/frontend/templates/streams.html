@@ -1,4 +1,9 @@
 {% extends 'base.html' %} {% block content %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename= 'css/streams.css') }}"
+/>
+
 <div class="page-title bg-secondary">
   <h1 class="centered">{% block title %} Streams {% endblock %}</h1>
   <div id="sort-container" class="form-group">
