@@ -34,10 +34,15 @@ async def _init_twitchAPI() -> Twitch:
 
 
 async def _main():
-    from snapper.database import Stream, get_all
+    from snapper.database import Stream, get_all, setup_dev_db
     from snapper.observer import StreamObserver
 
     twitchAPI: Twitch = await _init_twitchAPI()
+
+    if ENVS["APP_ENV"] == "dev":
+        test_channels = await read_test_channel_file_async()
+        await setup_dev_db(twitchAPI, test_channels)
+
     for stream in await get_all(Stream):
         try:
             oberserver = StreamObserver(twitchAPI, stream)

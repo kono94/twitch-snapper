@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from twitchAPI.helper import first
+from twitchAPI.object import TwitchUser
+from twitchAPI.twitch import Twitch
 
 from snapper.main import ENVS
 
@@ -133,3 +136,39 @@ async def get_all(obj: Type[T]) -> Sequence[T]:
     async with AsyncSessionLocal() as session:
         results = await session.execute(select(obj))
         return results.scalars().all()
+
+
+async def setup_dev_db(twitchAPI: Twitch, test_channels: list[dict[str, Any]]):
+    """Completely reset the database. Should only be used in "dev"-mode.
+    Double checking in __main__ method and here as well.
+    """
+    if ENVS["APP_ENV"] == "dev":
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+
+        async def create_stream(twitchAPI, channel_name, keyword_list, **kwargs):
+            user_info: TwitchUser | None = await first(
+                twitchAPI.get_users(logins=[channel_name])
+            )
+            if not user_info:
+                raise Exception(
+                    f"Cannot extract broadcast_id for channel {channel_name}."
+                )
+            stream = Stream(
+                channel_name=channel_name,
+                broadcaster_id=user_info.id,
+                keyword_list=keyword_list,
+                min_trigger_interval=10,
+                **kwargs,
+            )
+            return stream
+
+        for channel in test_channels:
+            c = await create_stream(
+                twitchAPI,
+                channel["channel_name"],
+                channel["emotes"],
+                trigger_threshold=channel["trigger_threshold"],
+            )
+            await persist(c)
