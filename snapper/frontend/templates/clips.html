@@ -1,80 +1,20 @@
 {% extends 'base.html' %} {% block content %}
-<div class="page-title bg-secondary">
-  <h1 class="centered">{% block title %} Clips {% endblock %}</h1>
-  <div id="sort-container" class="form-group">
-    <label for="sort-select">Sort By:</label>
-    <select id="sort-select" class="form-control" style="max-width: 200px">
-      <option value="latest">Latest</option>
-      <option value="keyword_count">Keyword Count</option>
-    </select>
-  </div>
-</div>
+<h1 class="bg-secondary centered">{% block title %} Clips {% endblock %}</h1>
 
-<div class="clips-container" id="main-clips-container"></div>
+<div class="clips">
+  {% for clip in clips %}
+  <div class="bg-secondary">
+    {{ clip.id }} {{ clip.stream.channel_name }}
 
-<script>
-  let page = 1;
-  const perPage = 4;
-  const clipsContainer = document.getElementById("main-clips-container");
-  let sortBy = "latest"; // Default sort
-
-  // Function to fetch and render clips
-  const loadClips = async () => {
-    const response = await fetch(
-      `/api/clips?page=${page}&per_page=${perPage}&sort_by=${sortBy}`
-    );
-    const clips = await response.json();
-    console.log(clips);
-
-    clips.forEach((clip) => {
-      // Create and append new clip elements
-      // This is a simplified example; you'd likely want to use a more complex HTML structure
-      const clipDiv = document.createElement("div");
-      clipDiv.className = "bg-secondary";
-      clipDiv.innerHTML = `
-    [${clip.id}] ${clip.twitch_clip_id}<br>
-    ${clip.stream.channel_name}<br>
-    keyword trigger: ${clip.keyword_trigger}<br>
-    keyword amount: ${clip.keyword_count}<br>
-    when: ${clip.created}<br>
-    <iframe src="https://clips.twitch.tv/embed?clip=${clip.twitch_clip_id}&parent=localhost"
-            allowfullscreen
-            style="position: relative; height: 100%; width: 100%"
-            frameborder="0">
+    <iframe
+      src="https://clips.twitch.tv/embed?clip={{ clip.twitch_clip_id }}&parent=localhost"
+      allowfullscreen
+      style="position: relative; height: 100%; width: 100%"
+      frameborder="0"
+    >
     </iframe>
-  `;
-      clipsContainer.appendChild(clipDiv);
-    });
-  };
-
-  const loadAndCheck = async () => {
-    await loadClips();
-    if (window.innerHeight >= document.body.offsetHeight) {
-      page++;
-      await loadAndCheck();
-    }
-  };
-  // Initial load
-  loadAndCheck();
-
-  // Infinite scrolling logic
-  window.addEventListener("scroll", () => {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
-      // Reached the bottom, load more clips
-      page++;
-      loadClips();
-    }
-  });
-
-  document
-    .getElementById("sort-select")
-    .addEventListener("change", function () {
-      sortBy = this.value;
-      console.log(sortBy);
-      page = 1; // Reset to first page
-      document.getElementById("main-clips-container").innerHTML = ""; // Clear existing clips
-      loadClips(); // Reload clips
-    });
-</script>
+  </div>
+  {% endfor %}
+</div>
 
 {% endblock %}
