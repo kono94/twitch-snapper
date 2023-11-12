@@ -8,13 +8,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import (
-    DeclarativeBase,
-    Mapped,
-    joinedload,
-    mapped_column,
-    relationship,
-)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from snapper.main import ENVS
 
@@ -137,5 +131,5 @@ async def persist(obj: T):
 
 async def get_all(obj: Type[T]) -> Sequence[T]:
     async with AsyncSessionLocal() as session:
-        results = await session.execute(select(obj).options(joinedload("*")))
+        results = await session.execute(select(obj))
         return results.scalars().all()
