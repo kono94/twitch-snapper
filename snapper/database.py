@@ -1,6 +1,5 @@
 import logging
-from functools import wraps
-from typing import Type, TypeVar
+from typing import Any, Sequence, Type, TypeVar
 
 from sqlalchemy import (
     Column,
@@ -30,9 +29,15 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from snapper.util import get_env_variable
+from snapper.main import ENVS
 
 Log = logging.getLogger(__name__)
+
+DATABASE_URL = f'mysql+aiomysql://{ENVS["DATABASE_USER"]}:{ENVS["DATABASE_PASSWORD"]}@localhost/{ENVS["DATABASE_NAME"]}'
+
+# Create async engine and session
+engine: AsyncEngine = create_async_engine(DATABASE_URL, echo=True)
+AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
 
 
 class Base(AsyncAttrs, DeclarativeBase):
@@ -173,72 +178,44 @@ class Clip(Base):
         return serialized_data
 
 
-############################################
-#### Abstracted Transition Handler Class ###
-############################################
-
+########################
+### Helper Functions ###
+########################
 T = TypeVar("T", Clip, Stream)
 
 
-class TransactionHandler:
-    # Create async engine and session
-    _engine: AsyncEngine = create_async_engine(
-        get_env_variable("DATABASE_URI"), echo=True
-    )
-    _AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(bind=_engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
+async def persist(obj: T):
+    async with AsyncSessionLocal() as session:
+        session.add(obj)
+        await session.commit()
 
-    @classmethod
-    def create_new_async_session(cls):
-        return cls._AsyncSessionLocal()
 
-    ########################
-    ### Helper Functions ###
-    ########################
-    @classmethod
-    async def persist(cls, obj: T):
-        async with cls.create_new_async_session() as session:
-            session.add(obj)
-            await session.commit()
+async def get_all(obj: Type[T]) -> ScalarResult[T]:
+    async with AsyncSessionLocal() as session:
+        results = await session.execute(select(obj).options(joinedload("*")))
+        return results.scalars().unique()
 
-    @classmethod
-    async def get_all(cls, obj: Type[T]) -> ScalarResult[T]:
-        async with cls.create_new_async_session() as session:
-            results = await session.execute(select(obj).options(joinedload("*")))
-            return results.scalars().unique()
 
-    @classmethod
-    async def get_by_page_and_sort(
-        cls,
-        obj: Type[T],
-        page: int,
-        per_page: int,
-        sort_by: UnaryExpression,
-        utc_timestamp=None,
-    ) -> ScalarResult[T]:
-        async with cls.create_new_async_session() as session:
-            # Calculate offset
-            offset = (page - 1) * per_page
+async def get_by_page_and_sort(
+    obj: Type[T], page: int, per_page: int, sort_by: UnaryExpression, utc_timestamp=None
+) -> Sequence[T]:
+    async with AsyncSessionLocal() as session:
+        # Calculate offset
+        offset = (page - 1) * per_page
 
-            # Fetch records with limit and offset
-            query = (
-                select(obj)
-                .options(joinedload("*"))
-                .order_by(sort_by)
-                .limit(per_page)
-                .offset(offset)
-            )
+        # Fetch records with limit and offset
+        query = (
+            select(obj)
+            .options(joinedload("*"))
+            .order_by(sort_by)
+            .limit(per_page)
+            .offset(offset)
+        )
 
-            if utc_timestamp != None and "created" in obj.__table__.columns:
-                Log.info("filtered")
-                query = query.filter(and_(obj.created >= utc_timestamp))
+        if utc_timestamp != None and "created" in obj.__table__.columns:
+            Log.info("filtered")
+            query = query.filter(and_(obj.created >= utc_timestamp))
 
-            results = await session.execute(query)
+        results = await session.execute(query)
 
-            return results.scalars().unique()
-
-    @classmethod
-    async def drop_and_create_database(cls):
-        assert get_env_variable("APP_ENV") in ["test", "dev"]
-        async with cls._engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-            await conn.run_sync(Base.metadata.create_all)
+        return results.scalars().all()

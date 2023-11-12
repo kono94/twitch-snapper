@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 
-from snapper.util import get_env_variable
+from snapper.main import ENVS
 
 Log = logging.getLogger(__name__)
 
@@ -28,10 +28,10 @@ class IRCClient:
     @classmethod
     def from_channel_name_only(cls, channel: str, coroutine_queue: asyncio.Queue):
         return cls(
-            get_env_variable("IRC_HOST"),
-            int(get_env_variable("IRC_PORT")),
-            get_env_variable("IRC_NICKNAME"),
-            get_env_variable("IRC_OAUTH"),
+            ENVS["IRC_HOST"],
+            int(ENVS["IRC_PORT"]),
+            ENVS["IRC_NICKNAME"],
+            ENVS["IRC_OAUTH"],
             channel,
             coroutine_queue,
         )
