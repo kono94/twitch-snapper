@@ -1,22 +1,15 @@
-import logging
 from datetime import datetime
 
 from quart import Quart, jsonify, render_template, request
-from sqlalchemy import desc
+from sqlalchemy import asc, desc, func, select
 
-from snapper.database import Clip, TransactionHandler
-from snapper.dto import StreamActiveUpdate
-from snapper.exception import NotFoundException
+from snapper.database import Clip, Stream, TransactionHandler
 
 app: Quart = Quart(
     __name__,
     template_folder="frontend/templates/",
     static_folder="frontend/static/",
 )
-
-#########################
-###       PAGES       ###
-#########################
 
 
 @app.route("/home")
@@ -37,16 +30,6 @@ async def clips():
 @app.route("/streams")
 async def streams():
     return await render_template("streams.html")
-
-
-@app.route("/about")
-async def about():
-    return await render_template("about.html")
-
-
-#########################
-###       API         ###
-#########################
 
 
 @app.route("/api/clips", methods=["GET"])
@@ -102,20 +85,6 @@ async def api_streams():
     return jsonify(json_data)
 
 
-@app.before_serving
-async def startup():
-    logging.getLogger("quart.app").setLevel(logging.DEBUG)
-
-
-@app.put("/api/stream/<int:stream_id>/active")
-async def toggle_stream_active(stream_id: int):
-    data = await request.json
-    active_update = StreamActiveUpdate(**data)
-    return await TransactionHandler.toogle_stream_activeness(
-        stream_id, active_update.is_active
-    )
-
-
-@app.errorhandler(NotFoundException)
-async def handle_not_found_error(e):
-    return {"error": str(e)}, 404
+@app.route("/about")
+async def about():
+    return await render_template("about.html")

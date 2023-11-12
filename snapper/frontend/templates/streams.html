@@ -43,34 +43,22 @@
       streamDiv.className = "bg-secondary stream";
 
       streamDiv.innerHTML = `
-        <div class="stream-details">
-            [${stream.id}] <b>${stream.channel_name}</b>
-            <br> braodcaster id: ${stream.broadcaster_id}<br>
-            added: ${stream.created}<br>
-            <br>
-            clip count: ${stream.clip_count}
-            <br><br>
-            active keywords:
-            <br>
-            ${stream.keywords
-              .map(
-                (keyword) =>
-                  `<img class="keyword_emote" src="${keyword.image_url}" alt="${keyword.value}">`
-              )
-              .join(" ")}
-        </div>
-        <div class="toggle-container">
-            <label class="switch">
-                <input type="checkbox"id="active-${stream.id}" ${
-        stream.is_active ? "checked" : ""
-      }>
-                <span class="slider"></span>
-            </label>
-        </div>
-        `;
+          [${stream.id}] <b>${stream.channel_name}</b>
+          <br> braodcaster id: ${stream.broadcaster_id}<br>
+          added: ${stream.created}<br>
+          <br>
+          clip count: ${stream.clip_count}
+          <br><br>
+          active keywords:
+          <br>
+          ${stream.keywords
+            .map(
+              (keyword) =>
+                `<img class="keyword_emote" src="${keyword.image_url}" alt="${keyword.value}">`
+            )
+            .join(" ")}`;
       streamsContainer.appendChild(streamDiv);
     });
-    addToogleListeners();
     loading = false;
   };
 
@@ -115,34 +103,4 @@
     });
 </script>
 
-<script>
-  const toggleStreamActive = (streamId, isActive) => {
-    console.log(JSON.stringify({ is_active: isActive }));
-    fetch(`/api/stream/${streamId}/active`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ is_active: isActive }),
-    })
-      .then((response) => response.json())
-      .then((data) => console.log(data))
-      .catch((error) => console.error("Error:", error));
-  };
-
-  const addToogleListeners = () => {
-    console.log("loaded elements");
-    let toggles = document.querySelectorAll('input[type="checkbox"]');
-
-    toggles.forEach((toogle) => {
-      toogle.addEventListener("change", function () {
-        console.log("switched");
-        const streamId = this.id.split("-")[1]; // Assuming ID is something like 'active-1'
-        const isActive = this.checked;
-        console.log(isActive);
-        toggleStreamActive(streamId, isActive);
-      });
-    });
-  };
-</script>
 {% endblock %}

@@ -3,22 +3,18 @@ from dataclasses import dataclass
 from typing import Type, TypeVar
 
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
     ForeignKey,
     Integer,
     ScalarResult,
-    ScalarSelect,
     String,
     Table,
-    TextClause,
     UnaryExpression,
     and_,
     desc,
     func,
     select,
-    text,
 )
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
@@ -36,7 +32,6 @@ from sqlalchemy.orm import (
     subqueryload,
 )
 
-from snapper.exception import NotFoundException
 from snapper.util import get_env_variable
 
 Log = logging.getLogger(__name__)
@@ -94,7 +89,6 @@ class Stream(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     channel_name: Mapped[str] = mapped_column(String(255))
     broadcaster_id: Mapped[str] = mapped_column(String(255), unique=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     keywords: Mapped[list[Keyword]] = relationship(
         secondary=stream_keyword_association, back_populates="streams"
     )
@@ -273,6 +267,10 @@ class TransactionHandler:
             # Calculate offset
             offset = (page - 1) * per_page
 
+            order_by: UnaryExpression = (
+                desc("clip_count") if order_by_clip_amount else desc(Stream.created)
+            )
+
             # Sub query to get clip count per stream
             clip_count_subquery = (
                 select(func.count().label("clip_count"))
@@ -281,15 +279,9 @@ class TransactionHandler:
                 .as_scalar()
             )
 
-            order_by: UnaryExpression | ScalarSelect = (
-                desc(clip_count_subquery)
-                if order_by_clip_amount
-                else desc(Stream.created)
-            )
-
             # Main query
             query = (
-                select(Stream, clip_count_subquery.label("clip_count"))
+                select(Stream, clip_count_subquery)
                 .outerjoin(stream_keyword_association)
                 .outerjoin(Keyword)
                 .options(subqueryload(Stream.keywords))
@@ -301,19 +293,6 @@ class TransactionHandler:
             results = await session.execute(query)
             rows = results.fetchall()
             return [StreamInfo(row[0], row[1]) for row in rows]
-
-    @classmethod
-    async def toogle_stream_activeness(
-        cls, stream_id: int, is_active: bool
-    ) -> dict[str, str]:
-        async with cls.create_new_async_session() as session:
-            stream = await session.get(Stream, stream_id)
-            if stream:
-                stream.is_active = is_active
-                await session.commit()
-                return {"status": "success"}
-            else:
-                raise NotFoundException(f"Stream with ID {stream_id} not found")
 
     @classmethod
     async def drop_and_create_database(cls):
