@@ -1,12 +1,10 @@
 import asyncio
-import json
 import logging
 import sys
 from pathlib import Path
 from threading import Thread
 from typing import Any
 
-import aiofiles  # type: ignore
 from dotenv import dotenv_values
 from twitchAPI.twitch import Twitch
 from twitchAPI.types import AuthScope
@@ -40,8 +38,7 @@ async def _main():
     twitchAPI: Twitch = await _init_twitchAPI()
 
     if ENVS["APP_ENV"] == "dev":
-        test_channels = await read_test_channel_file_async()
-        await setup_dev_db(twitchAPI, test_channels)
+        await setup_dev_db(twitchAPI)
 
     for stream in await get_all(Stream):
         try:
@@ -54,13 +51,6 @@ async def _main():
     await stop_event.wait()  # This will block the main coroutine indefinitely
 
 
-async def read_test_channel_file_async() -> list:
-    async with aiofiles.open("test_channels.json", mode="r") as f:
-        content = await f.read()
-        test_channels = json.loads(content)
-    return test_channels
-
-
 if __name__ == "__main__":
     logging.basicConfig(
         level=ENVS["LOG_LEVEL"],
@@ -70,7 +60,10 @@ if __name__ == "__main__":
 
     from snapper.app import app
 
-    flask_thread = Thread(target=lambda: app.run(port=8088))
+    def run_flask_app():
+        app.run(port=8088)
+
+    flask_thread = Thread(target=run_flask_app)
     flask_thread.start()
 
     asyncio.run(_main())
