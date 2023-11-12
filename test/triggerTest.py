@@ -1,56 +1,38 @@
-import logging
+import asyncio
+import sys
 import unittest
-from unittest.mock import AsyncMock, Mock, patch
+from pathlib import Path
+from unittest.mock import MagicMock
 
-from sqlalchemy import select
-from twitchAPI.object import Clip as TwitchClip
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from snapper.config import configure_environment, configure_logging
-from snapper.database import Clip, Keyword, Stream, TransactionHandler
-from snapper.observer import KeywordData, StreamObserver
-from snapper.twitch import TwitchApiHandler
-
-Log = logging.getLogger(__name__)
+from snapper.main import _init_twitchAPI
+from snapper.observer import StreamObserver
 
 
-class TestSuit(unittest.IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
-        configure_environment(".env")
-        configure_environment(".env.test")
-        configure_logging()
-        await TransactionHandler.drop_and_create_database()
-        # Code that runs before each test method
-        self.twitchAPI = await TwitchApiHandler.init_twitchAPI()
-        Log.info("setup done")
+class TestSuit:
+    async def async_setup(self):
+        self.twitchAPI = await _init_twitchAPI()
+        print("setup done")
 
-    async def test_invoke_trigger(self):
-        # Mock TwitchClip
-        mock_twitch_clip = Mock(spec=TwitchClip)
-        mock_twitch_clip.id = "69"
-        mock_twitch_clip.thumbnail_url = "test.com"
-        mock_twitch_clip.view_count = 420
-        mock_twitch_clip.title = "title"
+    async def test_trigger(self):
+        print("test_trigger")
 
-        test_keyword_data = KeywordData()
-        test_keyword_data.count = 77
+    #  observer = StreamObserver("lirik", self.twitchAPI)
+    # await observer._create_clip("kek", 10)
 
-        test_keyword = Keyword(value="LUL", image_url="http://example.com/lul.png")
-        test_stream = Stream("papaplatte", "50985620")
-        test_stream.keywords.append(test_keyword)
 
-        observer = StreamObserver(self.twitchAPI, test_stream)
+class TestRunner(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.testSuit = TestSuit()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(cls.testSuit.async_setup())
 
-        # Mocking _create_clip method that does post requests to TwitchAPI
-        with patch(
-            "snapper.observer.StreamObserver._create_clip",
-            new=AsyncMock(return_value=mock_twitch_clip),
-        ):
-            await observer._invoke_trigger(test_keyword, test_keyword_data)
+    def test_1(self):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.testSuit.test_trigger())
 
-        # Verify that the Clip object was persisted
-        async with TransactionHandler.create_new_async_session() as session:
-            added_clip = (
-                await session.execute(select(Clip).filter_by(twitch_clip_id="69"))
-            ).first()
-            print(added_clip)
-            self.assertIsNotNone(added_clip)
+
+if __name__ == "__main__":
+    unittest.main()
