@@ -5,7 +5,7 @@ from quart import Quart, jsonify, render_template, request
 from sqlalchemy import desc
 
 from snapper.database import Clip, TransactionHandler
-from snapper.dto import ClipRatingUpdate, StreamActiveUpdate
+from snapper.dto import StreamActiveUpdate
 from snapper.exception import NotFoundException
 
 app: Quart = Quart(
@@ -102,12 +102,9 @@ async def api_streams():
     return jsonify(json_data)
 
 
-@app.route("/api/clip/<int:clip_id>/rate", methods=["POST"])
-async def rate_clip(clip_id):
-    data = await request.json
-    rating_update = ClipRatingUpdate(**data)
-    print(rating_update)
-    return await TransactionHandler.rate_clip(clip_id, rating_update.rating)
+@app.before_serving
+async def startup():
+    logging.getLogger("quart.app").setLevel(logging.DEBUG)
 
 
 @app.put("/api/stream/<int:stream_id>/active")

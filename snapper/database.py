@@ -1,12 +1,11 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, Type, TypeVar
+from typing import Type, TypeVar
 
 from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Integer,
     ScalarResult,
@@ -81,7 +80,6 @@ class Keyword(Base):
     streams: Mapped[list["Stream"]] = relationship(
         secondary=stream_keyword_association, back_populates="keywords"
     )
-    clips: Mapped[list["Clip"]] = relationship(back_populates="keyword_trigger")
 
     def to_dict(self):
         serialized_data = {
@@ -149,8 +147,6 @@ class Clip(Base):
     thumbnail_url: Mapped[str] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(512))
     view_count: Mapped[int] = mapped_column()
-    rating: Mapped[float] = mapped_column(Float, default=0.0)  # Sum of all the ratings
-    nr_votes: Mapped[int] = mapped_column(Integer, default=0)  # Number of votes
     stream_id: Mapped[int] = mapped_column(ForeignKey("stream.id"))
     stream: Mapped[Stream] = relationship(
         "Stream"
@@ -188,10 +184,6 @@ class Clip(Base):
             c.name: getattr(self, c.name) for c in self.__table__.columns
         }
         serialized_data["stream"] = self.stream.to_dict() if self.stream else None
-        serialized_data["keyword_trigger"] = (
-            self.keyword_trigger.to_dict() if self.keyword_trigger else None
-        )
-
         return serialized_data
 
 
@@ -309,21 +301,6 @@ class TransactionHandler:
             results = await session.execute(query)
             rows = results.fetchall()
             return [StreamInfo(row[0], row[1]) for row in rows]
-
-    @classmethod
-    async def rate_clip(cls, clip_id: int, new_rating: float) -> dict[str, Any]:
-        async with cls.create_new_async_session() as session:
-            clip = await session.get(Clip, clip_id)
-            if not clip:
-                raise NotFoundException(f"Clip with ID {clip_id} not found")
-
-            clip.rating = ((clip.rating * clip.nr_votes) + new_rating) / (
-                clip.nr_votes + 1
-            )
-            clip.nr_votes += 1
-
-            await session.commit()
-            return {"message": "Rating updated", "new_rating": clip.rating}
 
     @classmethod
     async def toogle_stream_activeness(
