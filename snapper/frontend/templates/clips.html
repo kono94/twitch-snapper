@@ -4,18 +4,8 @@
   <div id="sort-container" class="form-group">
     <label for="sort-select">Sort By:</label>
     <select id="sort-select" class="form-control" style="max-width: 200px">
-      <option value="latest" selected>Latest</option>
+      <option value="latest">Latest</option>
       <option value="keyword_count">Keyword Count</option>
-    </select>
-  </div>
-
-  <div id="time-container" class="form-group">
-    <label for="time-select">Time:</label>
-    <select id="time-select" class="form-control" style="max-width: 200px">
-      <option value="1">Today</option>
-      <option value="7" selected>Last Week</option>
-      <option value="30">Last Month</option>
-      <option value="-1">All Time</option>
     </select>
   </div>
 </div>
@@ -27,30 +17,14 @@
   const perPage = 4;
   const clipsContainer = document.getElementById("main-clips-container");
   let sortBy = "latest"; // Default sort
-  const utcTimestampFromPrevDay = (lastDaysAmount) => {
-    return new Date(
-      new Date().getTime() - lastDaysAmount * 24 * 60 * 60 * 1000
-    ).toISOString();
-  };
-  let lastUtcTimestamp = utcTimestampFromPrevDay(7);
 
   // Function to fetch and render clips
   const loadClips = async () => {
-    console.log(
-      `/api/clips?page=${page}&per_page=${perPage}&sort_by=${sortBy}${
-        lastUtcTimestamp == null
-          ? ""
-          : `&last_timestamp_iso=${lastUtcTimestamp}`
-      }`
-    );
     const response = await fetch(
-      `/api/clips?page=${page}&per_page=${perPage}&sort_by=${sortBy}${
-        lastUtcTimestamp == null
-          ? ""
-          : `&last_timestamp_iso=${lastUtcTimestamp}`
-      }`
+      `/api/clips?page=${page}&per_page=${perPage}&sort_by=${sortBy}`
     );
     const clips = await response.json();
+    console.log(clips);
 
     clips.forEach((clip) => {
       // Create and append new clip elements
@@ -58,16 +32,17 @@
       const clipDiv = document.createElement("div");
       clipDiv.className = "bg-secondary";
       clipDiv.innerHTML = `
-          [${clip.id}] ${clip.twitch_clip_id}<br>
-          ${clip.stream.channel_name}<br>
-          keyword trigger: ${clip.keyword_trigger}<br>
-          keyword amount: ${clip.keyword_count}<br>
-          when: ${clip.created}<br>
-          <iframe src="https://clips.twitch.tv/embed?clip=${clip.twitch_clip_id}&parent=localhost"
-                  allowfullscreen
-                  style="position: relative; height: 100%; width: 100%"
-                  frameborder="0">
-          </iframe>`;
+    [${clip.id}] ${clip.twitch_clip_id}<br>
+    ${clip.stream.channel_name}<br>
+    keyword trigger: ${clip.keyword_trigger}<br>
+    keyword amount: ${clip.keyword_count}<br>
+    when: ${clip.created}<br>
+    <iframe src="https://clips.twitch.tv/embed?clip=${clip.twitch_clip_id}&parent=localhost"
+            allowfullscreen
+            style="position: relative; height: 100%; width: 100%"
+            frameborder="0">
+    </iframe>
+  `;
       clipsContainer.appendChild(clipDiv);
     });
   };
@@ -81,12 +56,6 @@
   };
   // Initial load
   loadAndCheck();
-
-  const resetClipContainer = () => {
-    page = 1; // Reset to first page
-    document.getElementById("main-clips-container").innerHTML = ""; // Clear existing clips
-    loadClips(); // Reload clips
-  };
 
   // Infinite scrolling logic
   window.addEventListener("scroll", () => {
@@ -102,19 +71,9 @@
     .addEventListener("change", function () {
       sortBy = this.value;
       console.log(sortBy);
-      resetClipContainer();
-    });
-
-  document
-    .getElementById("time-select")
-    .addEventListener("change", function () {
-      if (this.value == "-1") {
-        lastUtcTimestamp = null;
-      } else {
-        lastUtcTimestamp = utcTimestampFromPrevDay(this.value);
-      }
-      console.log(lastUtcTimestamp);
-      resetClipContainer();
+      page = 1; // Reset to first page
+      document.getElementById("main-clips-container").innerHTML = ""; // Clear existing clips
+      loadClips(); // Reload clips
     });
 </script>
 

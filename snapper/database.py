@@ -1,7 +1,15 @@
-import logging
 from typing import Any, Sequence, Type, TypeVar
 
-from sqlalchemy import DateTime, ForeignKey, String, UnaryExpression, and_, func, select
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    String,
+    UnaryExpression,
+    asc,
+    desc,
+    func,
+    select,
+)
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncEngine,
@@ -18,8 +26,6 @@ from sqlalchemy.orm import (
 )
 
 from snapper.main import ENVS
-
-Log = logging.getLogger(__name__)
 
 DATABASE_URL = f'mysql+aiomysql://{ENVS["DATABASE_USER"]}:{ENVS["DATABASE_PASSWORD"]}@localhost/{ENVS["DATABASE_NAME"]}'
 
@@ -158,25 +164,18 @@ async def get_all(obj: Type[T]) -> Sequence[T]:
 
 
 async def get_by_page_and_sort(
-    obj: Type[T], page: int, per_page: int, sort_by: UnaryExpression, utc_timestamp=None
+    obj: Type[T], page: int, per_page: int, sort_by: UnaryExpression
 ) -> Sequence[T]:
     async with AsyncSessionLocal() as session:
         # Calculate offset
         offset = (page - 1) * per_page
 
         # Fetch records with limit and offset
-        query = (
+        results = await session.execute(
             select(obj)
             .options(joinedload("*"))
             .order_by(sort_by)
             .limit(per_page)
             .offset(offset)
         )
-
-        if utc_timestamp != None and "created" in obj.__table__.columns:
-            Log.info("filtered")
-            query = query.filter(and_(obj.created >= utc_timestamp))
-
-        results = await session.execute(query)
-
         return results.scalars().all()
