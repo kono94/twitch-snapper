@@ -181,23 +181,14 @@ T = TypeVar("T", Clip, Stream)
 
 
 class TransactionHandler:
-    _engine: AsyncEngine | None = None
-    _AsyncSessionLocal: async_sessionmaker[AsyncSession] | None = None
+    # Create async engine and session
+    _engine: AsyncEngine = create_async_engine(
+        get_env_variable("DATABASE_URI"), echo=True
+    )
+    _AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(bind=_engine, class_=AsyncSession, expire_on_commit=False)  # type: ignore
 
     @classmethod
-    def get_engine(cls) -> AsyncEngine:
-        if cls._engine is None:
-            cls._engine = create_async_engine(
-                get_env_variable("DATABASE_URI"), echo=True
-            )
-        return cls._engine
-
-    @classmethod
-    def create_new_async_session(cls) -> AsyncSession:
-        if cls._AsyncSessionLocal is None:
-            cls._AsyncSessionLocal = async_sessionmaker(
-                bind=cls.get_engine(), class_=AsyncSession, expire_on_commit=False
-            )
+    def create_new_async_session(cls):
         return cls._AsyncSessionLocal()
 
     ########################
