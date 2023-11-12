@@ -106,9 +106,6 @@ class Clip(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     twitch_clip_id: Mapped[str] = mapped_column(String(255))
-    thumbnail_url: Mapped[str] = mapped_column(String(255))
-    title: Mapped[str] = mapped_column(String(512))
-    view_count: Mapped[int] = mapped_column()
     stream_id: Mapped[int] = mapped_column(
         ForeignKey("stream.id")
     )  # ForeignKey to Stream's id
@@ -124,18 +121,12 @@ class Clip(Base):
     def __init__(
         self,
         twitch_clip_id: str,
-        thumbnail_url: str,
-        title: str,
-        view_count: int,
         stream_id: int,
         keyword_trigger: str,
         keyword_count: int,
     ):
         super().__init__()
         self.twitch_clip_id = twitch_clip_id
-        self.thumbnail_url = thumbnail_url
-        self.title = title
-        self.view_count = view_count
         self.stream_id = stream_id
         self.keyword_trigger = keyword_trigger
         self.keyword_count = keyword_count
