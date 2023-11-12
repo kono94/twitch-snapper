@@ -1,9 +1,9 @@
 from datetime import datetime
 
 from quart import Quart, jsonify, render_template, request
-from sqlalchemy import asc, desc, func, select
+from sqlalchemy import asc, desc
 
-from snapper.database import Clip, Stream, TransactionHandler
+from snapper.database import Clip, TransactionHandler
 
 app: Quart = Quart(
     __name__,
@@ -24,12 +24,8 @@ async def index():
 
 @app.route("/clips")
 async def clips():
-    return await render_template("clips.html")
-
-
-@app.route("/streams")
-async def streams():
-    return await render_template("streams.html")
+    clips = await TransactionHandler.get_all(Clip)
+    return await render_template("clips.html", clips=clips)
 
 
 @app.route("/api/clips", methods=["GET"])
@@ -61,28 +57,6 @@ async def api_clips():
     )
 
     return jsonify([clip.to_dict() for clip in clips])
-
-
-@app.route("/api/streams", methods=["GET"])
-async def api_streams():
-    page = int(request.args.get("page", 1))
-    per_page = int(request.args.get("per_page", 20))
-    sort_by = request.args.get("sort_by", "latest")
-
-    order_by_clip_count = True if sort_by == "clip_count" else False
-    streams = await TransactionHandler.get_streams_with_clip_count(
-        page, per_page, order_by_clip_count
-    )
-
-    json_data = [
-        {
-            **streamInfo.stream.to_dict(),
-            "clip_count": streamInfo.clip_count,
-            "keywords": [keyword.to_dict() for keyword in streamInfo.stream.keywords],
-        }
-        for streamInfo in streams
-    ]
-    return jsonify(json_data)
 
 
 @app.route("/about")

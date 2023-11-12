@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from functools import wraps
 from typing import Type, TypeVar
 
 from sqlalchemy import (
@@ -12,7 +12,6 @@ from sqlalchemy import (
     Table,
     UnaryExpression,
     and_,
-    desc,
     func,
     select,
 )
@@ -29,7 +28,6 @@ from sqlalchemy.orm import (
     joinedload,
     mapped_column,
     relationship,
-    subqueryload,
 )
 
 from snapper.util import get_env_variable
@@ -75,12 +73,6 @@ class Keyword(Base):
     streams: Mapped[list["Stream"]] = relationship(
         secondary=stream_keyword_association, back_populates="keywords"
     )
-
-    def to_dict(self):
-        serialized_data = {
-            c.name: getattr(self, c.name) for c in self.__table__.columns
-        }
-        return serialized_data
 
 
 class Stream(Base):
@@ -188,12 +180,6 @@ class Clip(Base):
 T = TypeVar("T", Clip, Stream)
 
 
-@dataclass
-class StreamInfo:
-    stream: Stream
-    clip_count: int
-
-
 class TransactionHandler:
     _engine: AsyncEngine | None = None
     _AsyncSessionLocal: async_sessionmaker[AsyncSession] | None = None
@@ -252,7 +238,7 @@ class TransactionHandler:
             )
 
             if utc_timestamp != None and "created" in obj.__table__.columns:
-                Log.debug("filtered by creation date")
+                Log.info("filtered")
                 query = query.filter(and_(obj.created >= utc_timestamp))
 
             results = await session.execute(query)
@@ -260,43 +246,8 @@ class TransactionHandler:
             return results.scalars().unique()
 
     @classmethod
-    async def get_streams_with_clip_count(
-        cls, page: int, per_page: int, order_by_clip_amount: bool = False
-    ) -> list[StreamInfo]:
-        async with cls.create_new_async_session() as session:
-            # Calculate offset
-            offset = (page - 1) * per_page
-
-            order_by: UnaryExpression = (
-                desc("clip_count") if order_by_clip_amount else desc(Stream.created)
-            )
-
-            # Sub query to get clip count per stream
-            clip_count_subquery = (
-                select(func.count().label("clip_count"))
-                .where(Clip.stream_id == Stream.id)
-                .correlate_except(Clip)
-                .as_scalar()
-            )
-
-            # Main query
-            query = (
-                select(Stream, clip_count_subquery)
-                .outerjoin(stream_keyword_association)
-                .outerjoin(Keyword)
-                .options(subqueryload(Stream.keywords))
-                .group_by(Stream.id)
-                .order_by(order_by)
-                .limit(per_page)
-                .offset(offset)
-            )
-            results = await session.execute(query)
-            rows = results.fetchall()
-            return [StreamInfo(row[0], row[1]) for row in rows]
-
-    @classmethod
     async def drop_and_create_database(cls):
         assert get_env_variable("APP_ENV") in ["test", "dev"]
-        async with cls.get_engine().begin() as conn:
+        async with cls._engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)

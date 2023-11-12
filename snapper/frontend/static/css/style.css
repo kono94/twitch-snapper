@@ -76,28 +76,3 @@ h1 {
 .nav-link:hover {
   color: #968f8f !important;
 }
-
-/*  streams.html */
-/* Clips Grid */
-.streams-container {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.streams-container > div {
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  aspect-ratio: 16 / 9;
-  transition: transform 0.3s ease;
-  padding: 10px;
-}
-
-.streams-container > div:hover {
-  transform: scale(1.03);
-}
-
-.keyword_emote {
-  width: 50px;
-  margin: 10px;
-}
