@@ -19,5 +19,3 @@
   - Keywords will become a seperate table with image; This way, one can sort clips by individual keywords + easily construct a filter page based on keyword.
     This can also be done by just selecting all keywords from all clips, but this does not contain attributes for keywords like images
   - Cross table for streams and keywords that include keyword_trigger per individual keyword
-- Check if channel allows clips
-  - broadcaster with id=woowakgood does not allow clip generation...
