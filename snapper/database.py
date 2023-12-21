@@ -17,6 +17,7 @@ from sqlalchemy import (
     UnaryExpression,
     and_,
     desc,
+    false,
     func,
     select,
     text,
@@ -96,7 +97,9 @@ class Stream(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     channel_name: Mapped[str] = mapped_column(String(255))
     broadcaster_id: Mapped[str] = mapped_column(String(255), unique=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
     keywords: Mapped[list[Keyword]] = relationship(
         secondary=stream_keyword_association, back_populates="streams"
     )
@@ -149,8 +152,12 @@ class Clip(Base):
     thumbnail_url: Mapped[str] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(512))
     view_count: Mapped[int] = mapped_column()
-    rating: Mapped[float] = mapped_column(Float, default=0.0)  # Sum of all the ratings
-    nr_votes: Mapped[int] = mapped_column(Integer, default=0)  # Number of votes
+    rating: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default=text("0.0")
+    )  # Sum of all the ratings
+    nr_votes: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0")
+    )  # Number of votes
     stream_id: Mapped[int] = mapped_column(ForeignKey("stream.id"))
     stream: Mapped[Stream] = relationship(
         "Stream"
