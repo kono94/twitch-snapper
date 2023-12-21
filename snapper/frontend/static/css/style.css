@@ -1,0 +1,71 @@
+body {
+  color: #36454f;
+  font-family: "Merriweather", "Georgia", serif;
+}
+
+.bg-primary {
+  background-color: #001f3f !important;
+}
+
+.bg-secondary {
+  background-color: #faf3e0 !important;
+}
+
+.container {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+/* Title Section */
+h1 {
+  font-size: 3rem;
+}
+
+.page-title {
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+}
+
+.centered {
+  text-align: center;
+}
+
+.prevent-select {
+  -webkit-user-select: none;
+  /* Safari */
+  -ms-user-select: none;
+  /* IE 10 and IE 11 */
+  user-select: none;
+  /* Standard syntax */
+}
+
+/* Navbar */
+.navbar {
+  /*
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px; */
+  position: relative;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+  height: 60px;
+  /* Example height */
+}
+
+.nav-link {
+  color: inherit !important;
+}
+
+.navbar-brand {
+  color: inherit !important;
+}
+
+.nav-link:hover {
+  color: #968f8f !important;
+}
+
+.keyword_emote {
+  width: 50px;
+  margin: 10px;
+}

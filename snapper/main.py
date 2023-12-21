@@ -1,69 +1,37 @@
 import asyncio
 import logging
 import sys
-from pathlib import Path
-from threading import Thread
-from typing import Any
 
-from dotenv import dotenv_values
 from twitchAPI.twitch import Twitch
-from twitchAPI.types import AuthScope
 
-PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
-ENVS: dict[str, Any] = dotenv_values(PROJECT_ROOT / ".env")
-sys.path.append(str(PROJECT_ROOT))
+from snapper.app import app
+from snapper.config import configure_environment, configure_logging
+from snapper.database import Stream, TransactionHandler
+from snapper.observer import StreamObserver
+from snapper.twitch import TwitchApiHandler
 
 Log = logging.getLogger(__name__)
 
 
-async def _init_twitchAPI() -> Twitch:
-    twitch = await Twitch(
-        ENVS["TWITCH_APP_ID"],
-        ENVS["TWITCH_APP_SECRET"],
-    )
-    Log.debug("Logged into twitch")
-
-    target_scope = [AuthScope.CLIPS_EDIT]
-    token = ENVS["TWITCH_CLIENT_TOKEN"]
-    refresh_token = ENVS["TWITCH_CLIENT_REFRESH_TOKEN"]
-    await twitch.set_user_authentication(token, target_scope, refresh_token)
-    Log.debug("Set User Authentication")
-    return twitch
-
-
 async def _main():
-    from snapper.database import Stream, get_all, setup_dev_db
-    from snapper.observer import StreamObserver
-
-    twitchAPI: Twitch = await _init_twitchAPI()
-
-    if ENVS["APP_ENV"] == "dev":
-        await setup_dev_db(twitchAPI)
-
-    for stream in await get_all(Stream):
+    twitchAPI: Twitch = await TwitchApiHandler.init_twitchAPI()
+    for stream in await TransactionHandler.get_all(Stream):
         try:
             oberserver = StreamObserver(twitchAPI, stream)
             await oberserver.start_observing()
         except AssertionError as e:
             Log.error(e)
 
-    stop_event = asyncio.Event()  # Create an asyncio.Event
-    await stop_event.wait()  # This will block the main coroutine indefinitely
-
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=ENVS["LOG_LEVEL"],
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    configure_environment(".env")
+    configure_logging()
 
-    from snapper.app import app
+    loop = asyncio.new_event_loop()
+    if len(sys.argv) < 2:
+        Log.info("Observing streams, possibly creating new clips")
+        loop.run_until_complete(_main())
+    else:
+        Log.info("Not observing stream, just serving frontend")
 
-    def run_flask_app():
-        app.run(port=8088)
-
-    flask_thread = Thread(target=run_flask_app)
-    flask_thread.start()
-
-    asyncio.run(_main())
+    app.run(port=8088, debug=True, use_reloader=True, loop=loop)

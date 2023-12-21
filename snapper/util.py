@@ -1,7 +1,8 @@
 import logging
+import os
 from enum import Enum
 
-logger = logging.getLogger(__name__)
+Log = logging.getLogger(__name__)
 
 
 class Color(Enum):
@@ -23,3 +24,10 @@ def clip_to_string(clip_instance):
     ]
     # Join the list into a single formatted string
     return "\n".join(attributes_str)
+
+
+def get_env_variable(var_name: str):
+    var_value = os.getenv(var_name)
+    if var_value is None:
+        raise EnvironmentError(f"Environment variable {var_name} is not set")
+    return var_value

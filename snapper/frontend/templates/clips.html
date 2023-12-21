@@ -1,0 +1,33 @@
+{% extends 'base.html' %} {% block content %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename= 'css/clips.css') }}"
+/>
+
+<div class="page-title bg-secondary">
+  <h1 class="centered">{% block title %} Clips {% endblock %}</h1>
+  <div id="sort-container" class="form-group">
+    <label for="sort-select">Sort By:</label>
+    <select id="sort-select" class="form-control" style="max-width: 200px">
+      <option value="latest" selected>Latest</option>
+      <option value="keyword_count">Keyword Count</option>
+    </select>
+  </div>
+
+  <div id="time-container" class="form-group">
+    <label for="time-select">Time:</label>
+    <select id="time-select" class="form-control" style="max-width: 200px">
+      <option value="1">Today</option>
+      <option value="7" selected>Last Week</option>
+      <option value="30">Last Month</option>
+      <option value="-1">All Time</option>
+    </select>
+  </div>
+</div>
+
+<div class="clips-container" id="main-clips-container"></div>
+
+<script src="{{ url_for('static', filename= 'js/rating.js') }}"></script>
+<script src="{{ url_for('static', filename= 'js/clips.js') }}"></script>
+
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends 'base.html' %} {% block content %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename= 'css/streams.css') }}"
+/>
+
+<div class="page-title bg-secondary">
+  <h1 class="centered">{% block title %} Streams {% endblock %}</h1>
+  <div id="sort-container" class="form-group">
+    <label for="sort-select">Sort By:</label>
+    <select id="sort-select" class="form-control" style="max-width: 200px">
+      <option value="created" selected>Latest</option>
+      <option value="clip_count">Clip Count</option>
+    </select>
+  </div>
+</div>
+
+<div class="streams-container" id="main-streams-container"></div>
+
+<script>
+  let page = 1;
+  let loading = false;
+  let allContentLoaded = false; // Flag to indicate if all content has been loaded
+  const perPage = 4;
+  let streams = [];
+  const streamsContainer = document.getElementById("main-streams-container");
+  let sortBy = "latest"; // Default sort
+
+  // Function to fetch and render clips
+  const loadStreams = async () => {
+    if (loading || allContentLoaded) return; // Prevent additional fetches if already loading
+    loading = true;
+    requestString = `/api/streams?page=${page}&per_page=${perPage}&sort_by=${sortBy}`;
+    console.log(requestString);
+    const response = await fetch(requestString);
+
+    tmp = await response.json();
+    streams = streams.concat(tmp);
+    console.log(streams.length);
+    console.log("LOADING");
+    if (tmp.length < perPage) {
+      allContentLoaded = true; // Set flag to true because all content has been loaded
+    }
+
+    tmp.forEach((stream) => {
+      // Create and append new stream elements
+      const streamDiv = document.createElement("div");
+      streamDiv.className = "bg-secondary stream";
+
+      streamDiv.innerHTML = `
+        <div class="stream-details">
+            [${stream.id}] <b>${stream.channel_name}</b>
+            <br> braodcaster id: ${stream.broadcaster_id}<br>
+            added: ${stream.created}<br>
+            <br>
+            clip count: ${stream.clip_count}
+            <br><br>
+            active keywords:
+            <br>
+            ${stream.keywords
+              .map(
+                (keyword) =>
+                  `<img class="keyword_emote" src="${keyword.image_url}" alt="${keyword.value}">`
+              )
+              .join(" ")}
+        </div>
+        <div class="toggle-container">
+            <label class="switch">
+                <input type="checkbox"id="active-${stream.id}" ${
+        stream.is_active ? "checked" : ""
+      }>
+                <span class="slider"></span>
+            </label>
+        </div>
+        `;
+      streamsContainer.appendChild(streamDiv);
+    });
+    addToogleListeners();
+    loading = false;
+  };
+
+  const initialLoad = async () => {
+    while (
+      window.innerHeight >= document.body.offsetHeight &&
+      !allContentLoaded
+    ) {
+      await loadStreams();
+      page++;
+    }
+  };
+  // Initial load
+  initialLoad();
+
+  const resetStreamsAndContainer = () => {
+    page = 1; // Reset to first page
+    document.getElementById("main-streams-container").innerHTML = ""; // Clear existing streams
+    allContentLoaded = false;
+    streams = [];
+    loadStreams(); // Reload streams
+  };
+
+  // Infinite scrolling logic
+  window.addEventListener("scroll", () => {
+    if (loading || allContentLoaded) return; // If already loading, return
+
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+      // Reached the bottom, load more clips
+      page++;
+      loadStreams();
+      console.log("SCROLL");
+    }
+  });
+
+  document
+    .getElementById("sort-select")
+    .addEventListener("change", function () {
+      sortBy = this.value;
+      console.log(sortBy);
+      resetStreamsAndContainer();
+    });
+</script>
+
+<script>
+  const toggleStreamActive = (streamId, isActive) => {
+    console.log(JSON.stringify({ is_active: isActive }));
+    fetch(`/api/stream/${streamId}/active`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ is_active: isActive }),
+    })
+      .then((response) => response.json())
+      .then((data) => console.log(data))
+      .catch((error) => console.error("Error:", error));
+  };
+
+  const addToogleListeners = () => {
+    console.log("loaded elements");
+    let toggles = document.querySelectorAll('input[type="checkbox"]');
+
+    toggles.forEach((toogle) => {
+      toogle.addEventListener("change", function () {
+        console.log("switched");
+        const streamId = this.id.split("-")[1]; // Assuming ID is something like 'active-1'
+        const isActive = this.checked;
+        console.log(isActive);
+        toggleStreamActive(streamId, isActive);
+      });
+    });
+  };
+</script>
+{% endblock %}

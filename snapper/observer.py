@@ -5,10 +5,11 @@ import time
 from dataclasses import dataclass, field
 
 from twitchAPI.helper import first
+from twitchAPI.object import Clip as TwitchClip
 from twitchAPI.object import CreatedClip, TwitchUser
 from twitchAPI.twitch import Twitch
 
-from snapper.database import Clip, Stream, persist
+from snapper.database import Clip, Keyword, Stream, TransactionHandler
 from snapper.irc import IRCClient
 from snapper.util import Color, colored_string
 
@@ -66,7 +67,7 @@ class StreamObserver:
         self.msg_queue: asyncio.Queue = asyncio.Queue()
         self.last_time_triggered: float = 0
         self.keyword_count = {
-            keyword: KeywordData() for keyword in self.stream.keyword_list
+            keyword: KeywordData() for keyword in self.stream.keywords
         }
         self.running = False
         self.Log = MessagePrefixLogger(
@@ -105,10 +106,10 @@ class StreamObserver:
             if message is None:
                 return
             for keyword, keyword_data in self.keyword_count.items():
-                if keyword in message.message:
+                if keyword.value in message.message:
                     keyword_data.count += 1
                     self.Log.debug(
-                        f"{keyword} count increased to: {keyword_data.count}"
+                        f"{keyword.value} count increased to: {keyword_data.count}"
                     )
             self.Log.debug(message)
 
@@ -129,7 +130,7 @@ class StreamObserver:
             for keyword, keyword_data in self.keyword_count.items():
                 self.Log.debug(
                     colored_string(
-                        f"{keyword_data.count}x{keyword} per {self.stream.pause_interval} seconds",
+                        f"{keyword_data.count}x{keyword.value} per {self.stream.pause_interval} seconds",
                         Color.RED,
                     )
                 )
@@ -137,7 +138,7 @@ class StreamObserver:
 
             await asyncio.sleep(self.stream.pause_interval)
 
-    async def _check_keyword(self, keyword: str, keyword_data: KeywordData):
+    async def _check_keyword(self, keyword: Keyword, keyword_data: KeywordData):
         # When the keyword is not in activate-status, check if the keyword is mentioned enough times in the last
         # "pause"-interval in order to activate the keyword.
         # Otherwise reset the count again, start from 0 for the next interval
@@ -146,7 +147,7 @@ class StreamObserver:
             if keyword_data.count >= 3 and self._is_trigger_ready_again():
                 self.Log.info(
                     colored_string(
-                        f"Activate {keyword}!",
+                        f"Activate {keyword.value}!",
                         Color.YELLOW,
                     )
                 )
@@ -168,7 +169,7 @@ class StreamObserver:
                 await self._activation_time_window_ended(keyword, keyword_data)
 
     async def _activation_time_window_ended(
-        self, keyword: str, keyword_data: KeywordData
+        self, keyword: Keyword, keyword_data: KeywordData
     ):
         self.Log.info(
             colored_string(
@@ -183,18 +184,22 @@ class StreamObserver:
             await self._invoke_trigger(keyword, keyword_data)
         keyword_data.deactivate()
 
-    async def _invoke_trigger(self, keyword: str, keyword_data: KeywordData):
+    async def _invoke_trigger(self, keyword: Keyword, keyword_data: KeywordData):
         self.Log.info("Do something, e.g. create clip")
         try:
-            new_clip_id = await self._create_clip(keyword, keyword_data.count)
+            twitch_clip: TwitchClip = await self._create_clip()
             # Save the clip to the database using async session
-            new_clip = Clip(
-                twitch_clip_id=new_clip_id,
-                stream_id=self.stream.id,
+            new_clip: Clip = Clip(
+                twitch_clip_id=twitch_clip.id,
+                stream=self.stream,
+                thumbnail_url=twitch_clip.thumbnail_url,
+                title=twitch_clip.title,
+                view_count=twitch_clip.view_count,
                 keyword_trigger=keyword,
                 keyword_count=keyword_data.count,
             )
-            await persist(new_clip)
+            await TransactionHandler.persist(new_clip)
+            self.Log.info(f"Saving clip to database! {vars(new_clip)}")
         except Exception as e:
             self.Log.error(e)
 
@@ -217,7 +222,9 @@ class StreamObserver:
             self.last_time_triggered = time.time()
             return True
 
-    async def _create_clip(self, keyword: str, keyword_amount: int) -> str:
+    async def _create_clip(
+        self,
+    ) -> TwitchClip:
         """
         Uses the twitchAPI to create a clip right after the moment the special event was
         notices by the trigger logic.
@@ -238,11 +245,23 @@ class StreamObserver:
                 f"Cannot extract broadcast_id for channel {self.stream.channel_name}."
             )
 
-        createdClip: CreatedClip = await self.twitch.create_clip(
-            user_info.id, has_delay=True
-        )
+        try:
+            created_clip: CreatedClip = await self.twitch.create_clip(
+                user_info.id, has_delay=True
+            )
+        except Exception as _:
+            raise Exception(
+                f"Cannot create clip for the the broadcaster with id={user_info.id}"
+            )
+
         self.Log.info(
-            f"Created clip with id: {createdClip.id} and edit-url {createdClip.edit_url}"
+            f"Created clip with id: {created_clip.id} and edit-url {created_clip.edit_url}"
         )
 
-        return createdClip.id
+        clip: TwitchClip | None = None
+        while (
+            clip := await first(self.twitch.get_clips(clip_id=[created_clip.id]))
+        ) is None:
+            await asyncio.sleep(1)
+
+        return clip
