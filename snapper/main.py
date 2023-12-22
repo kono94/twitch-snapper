@@ -34,4 +34,4 @@ if __name__ == "__main__":
     else:
         Log.info("Not observing stream, just serving frontend")
 
-    app.run(port=8088, debug=True, use_reloader=True, loop=loop)
+    app.run(host="0.0.0.0", port=8088, debug=True, use_reloader=True, loop=loop)
