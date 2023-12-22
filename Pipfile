@@ -19,6 +19,7 @@ aiomysql = "==0.2.0"
 pytest-asyncio = "==0.21.1"
 pydantic = "==2.4.2"
 greenlet = "==3.0.1"
+hypercorn = "==0.15.0"
 
 [dev-packages]
 black = "*"

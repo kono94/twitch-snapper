@@ -222,8 +222,9 @@ class TransactionHandler:
     @classmethod
     def get_engine(cls) -> AsyncEngine:
         if cls._engine is None:
+            print_queries = get_env_variable("APP_ENV").lower() != "prod"
             cls._engine = create_async_engine(
-                get_env_variable("DATABASE_URI"), echo=True
+                get_env_variable("DATABASE_URI"), echo=print_queries
             )
         return cls._engine
 
