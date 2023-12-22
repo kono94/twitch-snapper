@@ -14,8 +14,7 @@ python -m snapper.main no_serve
 ```
 
 ```bash
-cd database
-docker compose up -d
+docker compose -f docker-compose.dev.yaml up -d
 ```
 
 MariaDB is running on port 3306
@@ -24,7 +23,6 @@ phpMyAdmin is running on port 8080
 ### Testing
 
 ```bash
-cd database
 docker compose -f docker-compose.test.yaml up -d
 python -m unittest test.triggerTest
 ```

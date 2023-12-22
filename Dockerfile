@@ -20,7 +20,8 @@ RUN pip install --no-cache-dir pipenv && pipenv install --deploy --ignore-pipfil
 
 # Copy the application code into the container
 COPY snapper/ snapper/
-COPY .env ./
+COPY alembic/ alembic/
+COPY alembic.ini ./
 
 ENV PYTHONPATH="/usr/src/app"
 # Run the command inside your environment

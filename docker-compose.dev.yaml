@@ -4,23 +4,21 @@ volumes:
   mariadb:
     driver: local
 
-networks:
-  db:
-    driver: bridge
-
 services:
   mariadb:
     image: mariadb:10.6
     restart: always
-    env_file: docker.env
+    environment:
+      - MARIADB_ROOT_PASSWORD=root
+      - MARIADB_DATABASE=snapper
+      - MARIADB_USER=snapper
+      - MARIADB_PASSWORD=snapper
     expose:
       - "3306"
     ports:
       - "3306:3306"
     volumes:
       - mariadb:/var/lib/mysql
-    networks:
-      db:
 
   phpmyadmin:
     image: phpmyadmin
@@ -32,5 +30,3 @@ services:
     environment:
       - PMA_HOST=mariadb
       - PMA_PORT=3306
-    networks:
-      db:

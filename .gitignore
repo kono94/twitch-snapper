@@ -1,6 +1,6 @@
 #custom
 .env
-.env.secret
+.env.compose
 trash/
 secrets
 docker.env
