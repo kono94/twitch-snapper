@@ -14,7 +14,7 @@ VERSION_TAG=$1
 git fetch --tags
 git checkout tags/$VERSION_TAG
 
-echo "Provided version is: $VERSION; Building container..."
+echo "Provided version is: $VERSION_TAG; Building container..."
 docker build -t snapper:$VERSION_TAG ../.
 
 echo "Decypting secrets"
