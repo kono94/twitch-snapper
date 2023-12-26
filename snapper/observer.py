@@ -89,9 +89,9 @@ class StreamObserver:
 
         self.running = True
         # store hard references because asyncio only does weak references
-        asyncio.create_task(irc_client.start_and_listen())
-        asyncio.create_task(self._analyse_keyword_count())
-        asyncio.create_task(self._message_queue_consumer())
+        self._irc_task = asyncio.create_task(irc_client.start_and_listen())
+        self._analyse_task = asyncio.create_task(self._analyse_keyword_count())
+        self._queue_task = asyncio.create_task(self._message_queue_consumer())
 
     def stop_observing(self):
         self.running = False

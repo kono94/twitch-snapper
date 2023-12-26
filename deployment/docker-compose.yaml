@@ -1,0 +1,41 @@
+version: "3.3"
+
+volumes:
+  mariadb:
+    driver: local
+
+services:
+  migration:
+    image: snapper:${SNAPPER_VERSION}
+    # override entrypoint and run migration
+    command: pipenv run alembic upgrade head
+    depends_on:
+      - mariadb
+    volumes:
+      - ".env.compose:/usr/src/app/.env"
+
+  snapper:
+    image: snapper:${SNAPPER_VERSION}
+    restart: always
+    depends_on:
+      - migration
+    volumes:
+      - ".env.compose:/usr/src/app/.env"
+    ports:
+      - "8088:8088"
+
+  mariadb:
+    image: mariadb:10.6
+    restart: always
+    env_file: docker.env
+    volumes:
+      - mariadb:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin
+    restart: always
+    ports:
+      - "127.0.0.1:8099:80"
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_PORT=3306

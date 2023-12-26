@@ -2,10 +2,12 @@ import asyncio
 import logging
 import sys
 
+from hypercorn.asyncio import serve
+from hypercorn.config import Config
 from twitchAPI.twitch import Twitch
 
 from snapper.app import app
-from snapper.config import configure_environment, configure_logging
+from snapper.config import configure_environment, configure_logging, get_env_variable
 from snapper.database import Stream, TransactionHandler
 from snapper.observer import StreamObserver
 from snapper.twitch import TwitchApiHandler
@@ -34,4 +36,13 @@ if __name__ == "__main__":
     else:
         Log.info("Not observing stream, just serving frontend")
 
-    app.run(port=8088, debug=True, use_reloader=True, loop=loop)
+    prod_mode = get_env_variable("APP_ENV").lower() == "prod"
+
+    if prod_mode:
+        Log.info("Starting in production mode and using hypercorn ASGI server")
+        config = Config()
+        config.bind = ["0.0.0.0:8088"]
+        asyncio.run(serve(app, config))
+    else:
+        Log.info("Starting in dev/test mode and using debug mode of Quart app")
+        app.run(host="0.0.0.0", port=8088, debug=True, use_reloader=True, loop=loop)
