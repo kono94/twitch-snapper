@@ -16,5 +16,8 @@ jobs:
 
       - name: Trigger update on remote server
         run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa lwenstrom.net >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
           echo $GITHUB_REF_NAME
           ssh jan@lwenstrom.net "bash ~/twitch-snapper/deployment/update_via_ci.sh $GITHUB_REF_NAME"
