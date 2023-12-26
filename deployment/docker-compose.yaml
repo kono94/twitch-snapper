@@ -21,8 +21,6 @@ services:
       - migration
     volumes:
       - ".env.compose:/usr/src/app/.env"
-    expose:
-      - "8088"
     ports:
       - "8088:8088"
 
@@ -36,10 +34,8 @@ services:
   phpmyadmin:
     image: phpmyadmin
     restart: always
-    expose:
-      - "8080"
     ports:
-      - "8099:80"
+      - "127.0.0.1:8099:80"
     environment:
       - PMA_HOST=mariadb
       - PMA_PORT=3306
