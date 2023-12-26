@@ -39,4 +39,4 @@ cat .env.compose.encrypted | base64 -d | age --decrypt -i key.txt > .env.compose
 cat docker.env.encrypted | base64 -d | age --decrypt -i key.txt > docker.env
 
 echo "Re-starting docker compose"
-docker compose up -d
+docker-compose up -d
