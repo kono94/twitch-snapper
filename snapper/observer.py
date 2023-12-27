@@ -144,7 +144,10 @@ class StreamObserver:
         # Otherwise reset the count again, start from 0 for the next interval
         if not keyword_data.is_active:
             # Check trigger threshold and if the last trigger happened some time ago to not spam triggers (and potential clips)
-            if keyword_data.count >= 3 and self._is_trigger_ready_again():
+            if (
+                keyword_data.count >= self.stream.activation_threshold
+                and self._is_trigger_ready_again()
+            ):
                 self.Log.info(
                     colored_string(
                         f"Activate {keyword.value}!",
