@@ -44,7 +44,7 @@ if __name__ == "__main__":
     if prod_mode:
         Log.info("Starting in production mode and using hypercorn ASGI server")
         config = Config()
-        config.bind = [host + str(port)]
+        config.bind = [host + ":" + str(port)]
         loop.run_until_complete(serve(app, config))
     else:
         Log.info("Starting in dev/test mode and using debug mode of Quart app")
