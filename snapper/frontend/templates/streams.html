@@ -16,7 +16,46 @@ content %}
   </div>
 </div>
 
-<div class="streams-container" id="main-streams-container"></div>
+<div class="streams-container" id="main-streams-container">
+  {% for stream in streams %}
+  <div class="bg-secondary stream">
+    <div class="stream-details">
+      [{{ stream.id }}] <b>{{ stream.channel_name }}</b> <br />
+      broadcaster id: {{ stream.broadcaster_id }}<br />
+      added: {{ stream.created }}<br />
+      <br />
+      clip count: {{ stream.clip_count }}
+      <br /><br />
+      active keywords:
+      <br />
+      {% for keyword in stream.keywords %}
+      <img
+        class="keyword_emote"
+        src="{{ keyword.image_url }}"
+        alt="{{ keyword.value }}"
+      />
+      {% endfor %}
+    </div>
+    <div class="toggle-container">
+      <label class="switch">
+        <input
+          type="checkbox"
+          id="active-{{ stream.id }}"
+          {%
+          if
+          stream.is_active
+          %}
+          checked
+          {%
+          endif
+          %}
+        />
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+  {% endfor %}
+</div>
 
 <script>
   let page = 1;
