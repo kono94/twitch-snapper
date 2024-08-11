@@ -1,6 +1,7 @@
-{% extends 'base.html' %} {% block content %}
+{% extends 'base.html' %} {% block title %} Home {% endblock %} {% block content
+%}
 <div class="page-title bg-secondary">
-  <h1 class="centered">{% block title %} Home {% endblock %}</h1>
+  <h1 class="centered">{{ self.title() }}</h1>
 
   <span>
     Greetings!

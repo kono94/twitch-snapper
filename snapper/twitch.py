@@ -9,7 +9,7 @@ Log = logging.getLogger(__name__)
 
 
 class TwitchApiHandler:
-    _instance = None  # Class variable to hold the singleton instance
+    _instance: Twitch | None = None  # Class variable to hold the singleton instance
 
     @classmethod
     async def init_twitchAPI(cls) -> Twitch:
