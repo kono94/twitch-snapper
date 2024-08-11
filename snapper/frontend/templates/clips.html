@@ -1,11 +1,12 @@
-{% extends 'base.html' %} {% block content %}
+{% extends 'base.html' %} {% block title %} Clips {% endblock %} {% block
+content %}
 <link
   rel="stylesheet"
   href="{{ url_for('static', filename= 'css/clips.css') }}"
 />
 
 <div class="page-title bg-secondary">
-  <h1 class="centered">{% block title %} Clips {% endblock %}</h1>
+  <h1 class="centered">{{ self.title() }}</h1>
   <div id="sort-container" class="form-group">
     <label for="sort-select">Sort By:</label>
     <select id="sort-select" class="form-control" style="max-width: 200px">

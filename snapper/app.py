@@ -36,7 +36,35 @@ async def clips():
 
 @app.route("/streams")
 async def streams():
-    return await render_template("streams.html")
+    page = 1
+    per_page = 20
+    sort_by = "latest"
+    last_timestamp_iso: str | None = None
+
+    if last_timestamp_iso != None:
+        print(last_timestamp_iso)
+        utc_timestamp = datetime.fromisoformat(
+            last_timestamp_iso
+        )  # Convert the string to a datetime object
+    else:
+        utc_timestamp = None
+
+    # Determine sort order
+    if sort_by == "latest":
+        order_by = desc(Clip.created)
+    elif sort_by == "keyword_count":
+        order_by = desc(Clip.keyword_count)
+    else:
+        order_by = desc(Clip.created)  # Default sort
+
+    # Fetch and sort clips from the database, skipping the clips for previous pages
+    clips = await TransactionHandler.get_by_page_and_sort(
+        Clip, page, per_page, order_by, utc_timestamp
+    )
+
+    return await render_template(
+        "streams.html", streamss=[clip.to_dict() for clip in clips]
+    )
 
 
 @app.route("/about")

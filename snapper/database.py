@@ -13,7 +13,6 @@ from sqlalchemy import (
     ScalarSelect,
     String,
     Table,
-    TextClause,
     UnaryExpression,
     and_,
     desc,
@@ -222,7 +221,7 @@ class TransactionHandler:
     @classmethod
     def get_engine(cls) -> AsyncEngine:
         if cls._engine is None:
-            print_queries = get_env_variable("APP_ENV").lower() != "prod"
+            print_queries = get_env_variable("APP_ENV").lower() == "debug"
             cls._engine = create_async_engine(
                 get_env_variable("DATABASE_URI"), echo=print_queries
             )

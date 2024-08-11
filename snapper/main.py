@@ -15,7 +15,7 @@ from snapper.twitch import TwitchApiHandler
 Log = logging.getLogger(__name__)
 
 
-async def _main():
+async def _main() -> None:
     twitchAPI: Twitch = await TwitchApiHandler.init_twitchAPI()
     for stream in await TransactionHandler.get_all(Stream):
         try:

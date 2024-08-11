@@ -1,11 +1,12 @@
-{% extends 'base.html' %} {% block content %}
+{% extends 'base.html' %} {% block title %} Streams {% endblock %} {% block
+content %}
 <link
   rel="stylesheet"
   href="{{ url_for('static', filename= 'css/streams.css') }}"
 />
 
 <div class="page-title bg-secondary">
-  <h1 class="centered">{% block title %} Streams {% endblock %}</h1>
+  <h1 class="centered">{{ self.title() }}</h1>
   <div id="sort-container" class="form-group">
     <label for="sort-select">Sort By:</label>
     <select id="sort-select" class="form-control" style="max-width: 200px">
@@ -15,7 +16,46 @@
   </div>
 </div>
 
-<div class="streams-container" id="main-streams-container"></div>
+<div class="streams-container" id="main-streams-container">
+  {% for stream in streams %}
+  <div class="bg-secondary stream">
+    <div class="stream-details">
+      [{{ stream.id }}] <b>{{ stream.channel_name }}</b> <br />
+      broadcaster id: {{ stream.broadcaster_id }}<br />
+      added: {{ stream.created }}<br />
+      <br />
+      clip count: {{ stream.clip_count }}
+      <br /><br />
+      active keywords:
+      <br />
+      {% for keyword in stream.keywords %}
+      <img
+        class="keyword_emote"
+        src="{{ keyword.image_url }}"
+        alt="{{ keyword.value }}"
+      />
+      {% endfor %}
+    </div>
+    <div class="toggle-container">
+      <label class="switch">
+        <input
+          type="checkbox"
+          id="active-{{ stream.id }}"
+          {%
+          if
+          stream.is_active
+          %}
+          checked
+          {%
+          endif
+          %}
+        />
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+  {% endfor %}
+</div>
 
 <script>
   let page = 1;
